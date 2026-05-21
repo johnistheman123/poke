@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guess That Pokémon</title>
+    <style>
+        :root {
+            --primary-color: #ffcb05;
+            --secondary-color: #3b4cca;
+            --bg-color: #eef2f7;
+            --card-bg: #ffffff;
+            --border-color: #ccc;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* Screen Container */
+        .screen {
+            background: var(--card-bg);
+            border: 2px solid #333;
+            border-radius: 12px;
+            width: 380px;
+            min-height: 520px;
+            padding: 20px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+            box-sizing: border-box;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        /* Typography & Buttons */
+        h1, h2 {
+            margin-top: 0;
+            color: var(--secondary-color);
+            text-align: center;
+        }
+
+        button {
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.1s, background-color 0.2s;
+            width: 100%;
+            margin: 5px 0;
+        }
+
+        button:hover {
+            background-color: #2a3a9e;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        /* Home Screen */
+        #home-screen {
+            justify-content: center;
+            gap: 40px;
+        }
+
+        /* Game Screen */
+        .stats-header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .shop-btn-nav {
+            background: var(--primary-color);
+            color: #333;
+            padding: 6px 12px;
+            width: auto;
+            font-size: 13px;
+        }
+
+        .image-container {
+            width: 200px;
+            height: 200px;
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #fafafa;
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .pokemon-img {
+            max-width: 85%;
+            max-height: 85%;
+            object-fit: contain;
+            transition: filter 0.3s ease;
+        }
+
+        /* The Magic Silhouette Effect */
+        .silhouette {
+            filter: brightness(0) contrast(1);
+        }
+
+        .options-container {
+            width: 100%;
+            background: #f9f9f9;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+            box-sizing: border-box;
+            margin-bottom: 15px;
+        }
+
+        .option-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 6px;
+            cursor: pointer;
+            background: #fff;
+            border: 1px solid #ddd;
+            transition: background 0.2s;
+        }
+
+        .option-item:hover {
+            background: #f0f4ff;
+        }
+
+        .option-item input {
+            margin-right: 12px;
+            transform: scale(1.2);
+        }
+
+        .action-buttons {
+            display: flex;
+            width: 100%;
+            gap: 10px;
+        }
+
+        /* Result Screens */
+        .result-title {
+            font-size: 28px;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .success-text { color: #2e7d32; }
+        .fail-text { color: #c62828; }
+
+        /* Shop Screen */
+        .shop-items-list {
+            width: 100%;
+            flex-grow: 1;
+            margin: 15px 0;
+        }
+
+        .shop-item {
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fafafa;
+        }
+
+        .shop-item-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .item-name { font-weight: bold; }
+        .item-cost { font-size: 12px; color: #666; }
+        
+        .buy-btn {
+            width: auto;
+            padding: 6px 16px;
+            font-size: 13px;
+            background-color: #2e7d32;
+        }
+        .buy-btn.equipped {
+            background-color: #757575;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="home-screen" class="screen active">
+        <div>
+            <h1>POKÉMON</h1>
+            <h2 style="font-size: 18px; color: #666;">Guess That Pokémon!</h2>
+        </div>
+        <button onclick="navigateTo('game-screen')">START GAME</button>
+    </div>
+
+    <div id="game-screen" class="screen">
+        <div class="stats-header">
+            <div>Money: $<span id="money-display">0</span></div>
+            <button class="shop-btn-nav" onclick="navigateTo('shop-screen')">Go to Shop</button>
+        </div>
+        
+        <h2>Guess that Pokémon</h2>
+
+        <div class="image-container">
+            <img id="pokemon-target" class="pokemon-img silhouette" src="" alt="Pokemon Silhouette">
+        </div>
+
+        <div class="options-container" id="options-box">
+            </div>
+
+        <div class="action-buttons">
+            <button style="background-color: #e0e0e0; color: #333;" onclick="useHint()">Hint</button>
+            <button onclick="checkAnswer()">Final Answer</button>
+        </div>
+    </div>
+
+    <div id="success-screen" class="screen">
+        <div class="result-title success-text">YAYAYAY!</div>
+        <p style="text-align: center; font-size: 18px;">
+            You got it correct!<br>
+            <strong class="success-text">+10 points</strong>
+        </p>
+        
+        <div class="image-container" style="border: none; height: 140px;">
+            <img id="reveal-success-img" class="pokemon-img" src="" alt="Revealed Pokemon">
+        </div>
+        
+        <div id="success-pokemon-reveal" style="text-align: center; font-weight: bold; margin-bottom: 20px; font-size: 18px;"></div>
+        <button onclick="nextRound()">Next Pokémon</button>
+    </div>
+
+    <div id="fail-screen" class="screen">
+        <div class="result-title fail-text">Nope try again</div>
+        <p style="text-align: center; color: #555;">That wasn't the right one.</p>
+        
+        <div class="action-buttons" style="flex-direction: column; width: 100%; margin-top: auto;">
+            <button onclick="navigateTo('game-screen')">Try Again</button>
+            <button style="background-color: #757575;" onclick="nextRound()">Skip Pokémon</button>
+        </div>
+    </div>
+
+    <div id="shop-screen" class="screen">
+        <div class="stats-header">
+            <div>Amount: $<span id="shop-money-display">0</span></div>
+            <div style="font-size: 11px; text-align: right;">Currently Equipped:<br><span id="equipped-item-display" style="color: var(--secondary-color);">None</span></div>
+        </div>
+        
+        <h2>Shop</h2>
+        <p style="font-size: 12px; color:#666; text-align:center; margin: 0 0 15px 0;">poki items for different types of prices</p>
+
+        <div class="shop-items-list" id="shop-list">
+            </div>
+
+        <button style="background-color: #757575;" onclick="navigateTo('game-screen')">Back to Game</button>
+    </div>
+
+    <script>
+        const pokemonDatabase = [
+            { id: 1, name: "Pikachu", type: "Electric", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png" },
+            { id: 2, name: "Charmander", type: "Fire", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/4.png" },
+            { id: 3, name: "Bulbasaur", type: "Grass", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/1.png" },
+            { id: 4, name: "Squirtle", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png" },
+            { id: 5, name: "Eevee", type: "Normal", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/133.png" },
+            { id: 6, name: "Gengar", type: "Ghost", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/94.png" },
+            { id: 7, name: "Snorlax", type: "Normal", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/143.png" },
+            { id: 8, name: "Mewtwo", type: "Psychic", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/150.png" },
+            { id: 9, name: "Jigglypuff", type: "Fairy", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/39.png" },
+            { id: 10, name: "Lucario", type: "Fighting/Steel", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/448.png" },
+            { id: 11, name: "Togepi", type: "Fairy", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/175.png" },
+            { id: 12, name: "Mudkip", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/258.png" },
+            { id: 13, name: "Charizard", type: "Fire/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/6.png" },
+            { id: 14, name: "Blastoise", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/9.png" },
+            { id: 15, name: "Venusaur", type: "Grass/Poison", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/3.png" },
+            { id: 16, name: "Psyduck", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/54.png" },
+            { id: 17, name: "Dragonite", type: "Dragon/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/149.png" },
+            { id: 18, name: "Meowth", type: "Normal", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/52.png" },
+            { id: 19, name: "Mew", type: "Psychic", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/151.png" },
+            { id: 20, name: "Rayquaza", type: "Dragon/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/384.png" },
+            { id: 21, name: "Lugia", type: "Psychic/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/249.png" },
+            { id: 22, name: "Greninja", type: "Water/Dark", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/658.png" },
+            { id: 23, name: "Gardevoir", type: "Psychic/Fairy", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/282.png" },
+            { id: 24, name: "Mimikyu", type: "Ghost/Fairy", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/778.png" },
+            { id: 25, name: "Rowlet", type: "Grass/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/722.png" },
+            { id: 26, name: "Cyndaquil", type: "Fire", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/155.png" },
+            { id: 27, name: "Totodile", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/158.png" },
+            { id: 28, name: "Chikorita", type: "Grass", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/152.png" },
+            { id: 29, name: "Umbreon", type: "Dark", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/197.png" },
+            { id: 30, name: "Espeon", type: "Psychic", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/196.png" },
+            { id: 31, name: "Lapras", type: "Water/Ice", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/131.png" },
+            { id: 32, name: "Arceus", type: "Normal", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/493.png" }
+        ];
+
+        const shopInventory = [
+            { id: 'item1', name: "Great Ball Badge", price: 15 },
+            { id: 'item2', name: "Ultra Ball Charm", price: 30 },
+            { id: 'item3', name: "Master Shiny Pass", price: 50 }
+        ];
+
+        let playerMoney = 0;
+        let currentPokemon = null;
+        let selectedOption = null;
+        let equippedItem = "None";
+
+        function navigateTo(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+
+            if (screenId === 'game-screen' && !currentPokemon) {
+                generateNewQuestion();
+            }
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('money-display').innerText = playerMoney;
+            document.getElementById('shop-money-display').innerText = playerMoney;
+            document.getElementById('equipped-item-display').innerText = equippedItem;
+            renderShop();
+        }
+
+        function generateNewQuestion() {
+            const randomIndex = Math.floor(Math.random() * pokemonDatabase.length);
+            currentPokemon = pokemonDatabase[randomIndex];
+
+            const imgEl = document.getElementById('pokemon-target');
+            imgEl.src = currentPokemon.img;
+            imgEl.classList.add('silhouette'); 
+
+            let options = [currentPokemon.name];
+            while (options.length < 4) {
+                let randomDecoy = pokemonDatabase[Math.floor(Math.random() * pokemonDatabase.length)].name;
+                if (!options.includes(randomDecoy)) {
+                    options.push(randomDecoy);
+                }
+            }
+            options.sort(() => Math.random() - 0.5);
+
+            const optionsBox = document.getElementById('options-box');
+            optionsBox.innerHTML = '';
+            options.forEach((name, index) => {
+                const item = document.createElement('div');
+                item.className = 'option-item';
+                item.innerHTML = `
+                    <input type="radio" id="opt-${index}" name="pkmn-opt" value="${name}">
+                    <label for="opt-${index}" style="width:100%; cursor:pointer;">${name}</label>
+                `;
+                item.onclick = () => {
+                    document.getElementById(`opt-${index}`).checked = true;
+                    selectedOption = name;
+                };
+                optionsBox.appendChild(item);
+            });
+
+            selectedOption = null;
+        }
+
+        function useHint() {
+            if (currentPokemon) {
+                alert(`Hint: This Pokémon is a ${currentPokemon.type}-type!`);
+            }
+        }
+
+        function checkAnswer() {
+            if (!selectedOption) {
+                alert("Please pick an option first!");
+                return;
+            }
+
+            if (selectedOption === currentPokemon.name) {
+                playerMoney += 10;
+                
+                document.getElementById('reveal-success-img').src = currentPokemon.img;
+                document.getElementById('success-pokemon-reveal').innerText = `It's ${currentPokemon.name}!`;
+                
+                updateUI();
+                navigateTo('success-screen');
+            } else {
+                navigateTo('fail-screen');
+            }
+        }
+
+        function nextRound() {
+            currentPokemon = null;
+            navigateTo('game-screen');
+        }
+
+        function renderShop() {
+            const listContainer = document.getElementById('shop-list');
+            listContainer.innerHTML = '';
+
+            shopInventory.forEach(item => {
+                const row = document.createElement('div');
+                row.className = 'shop-item';
+                
+                const isEquipped = equippedItem === item.name;
+                const buttonText = isEquipped ? 'Equipped' : 'Buy';
+                const buttonClass = isEquipped ? 'buy-btn equipped' : 'buy-btn';
+                const disabledAttr = isEquipped ? 'disabled' : '';
+
+                row.innerHTML = `
+                    <div class="shop-item-info">
+                        <span class="item-name">${item.name}</span>
+                        <span class="item-cost">Price: $${item.price}</span>
+                    </div>
+                    <button class="${buttonClass}" ${disabledAttr} onclick="buyItem('${item.name}', ${item.price})">
+                        ${buttonText}
+                    </button>
+                `;
+                listContainer.appendChild(row);
+            });
+        }
+
+        function buyItem(itemName, price) {
+            if (playerMoney >= price) {
+                playerMoney -= price;
+                equippedItem = itemName;
+                alert(`Purchased and equipped ${itemName}!`);
+                updateUI();
+            } else {
+                alert("Not enough money!");
+            }
+        }
+
+        window.onload = () => { updateUI(); };
+    </script>
+</body>
+</html>
