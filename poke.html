@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Guess That Pokémon - Cross-Device Wireless Edition</title>
+    <title>Guess That Pokémon - Wireless Multiplayer</title>
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -139,6 +139,38 @@
             width: auto;
             font-size: 13px;
         }
+
+        /* Badge Case Displays */
+        .badge-case-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            min-height: 34px;
+        }
+
+        .charm-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+            animation: popIn 0.3s ease;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .badge-great { background: linear-gradient(135deg, #1565c0, #00d2ff); border: 1px solid #0d47a1; }
+        .badge-ultra { background: linear-gradient(135deg, #37474f, #ffeb3b); color: #212121; border: 1px solid #212121; }
+        .badge-master { background: linear-gradient(135deg, #4a148c, #ec407a); border: 1px solid #311b92; box-shadow: 0 0 8px #ab47bc; }
 
         .image-container {
             width: 200px;
@@ -280,6 +312,8 @@
         
         <h2>Guess that Pokémon</h2>
 
+        <div id="badge-case" class="badge-case-container"></div>
+
         <div class="image-container">
             <img id="pokemon-target" class="pokemon-img silhouette" src="" alt="Pokemon Silhouette">
         </div>
@@ -356,9 +390,9 @@
         ];
 
         const shopInventory = [
-            { id: 'item1', name: "Great Ball Badge", price: 15 },
-            { id: 'item2', name: "Ultra Ball Charm", price: 30 },
-            { id: 'item3', name: "Master Shiny Pass", price: 50 }
+            { id: 'item1', name: "Great Ball Badge", price: 15, cssClass: "badge-great", icon: "🔵" },
+            { id: 'item2', name: "Ultra Ball Charm", price: 30, cssClass: "badge-ultra", icon: "🟡" },
+            { id: 'item3', name: "Master Shiny Pass", price: 50, cssClass: "badge-master", icon: "🔮" }
         ];
 
         // Global State & Network variables
@@ -424,7 +458,7 @@
 
                 updateNetworkStatusLog("Reaching broker switchboard...");
                 amIHost = false;
-                p2pPeerInstance = new Peer(); // Client gets an auto-assigned hash ID
+                p2pPeerInstance = new Peer();
 
                 p2pPeerInstance.on('open', (assignedId) => {
                     localPlayerId = assignedId;
@@ -542,7 +576,6 @@
                     }));
                     updateUI();
                 } else {
-                    // Guests can navigate to their local instance of the shop, other screens follow the host
                     if (screenId === 'shop-screen' || screenId === 'game-screen') {
                         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
                         document.getElementById(screenId).classList.add('active');
@@ -565,6 +598,9 @@
                 document.getElementById('player-turn-banner').innerText = `${activeTurnPlayer.name.toUpperCase()}'S TURN`;
                 document.getElementById('money-display').innerText = localProfile.money;
                 
+                // Render Visual Charms for the active user whose turn it currently is
+                renderEquippedCharmsBar(activeTurnPlayer);
+
                 // Shop Display Updates
                 document.getElementById('shop-owner-title').innerText = `${localProfile.name} Shop`;
                 document.getElementById('shop-money-display').innerText = localProfile.money;
@@ -591,6 +627,27 @@
                 renderShopInventory();
             } catch (err) {
                 console.error("UI Canvas write execution failed:", err);
+            }
+        }
+
+        // Draws the badges dynamically on the board screen
+        function renderEquippedCharmsBar(activePlayer) {
+            const badgeCase = document.getElementById('badge-case');
+            if (!badgeCase) return;
+            badgeCase.innerHTML = '';
+
+            if (!activePlayer.equippedItem || activePlayer.equippedItem === "None") {
+                badgeCase.innerHTML = `<span style="color:#aaa; font-size:12px; font-style:italic;">No active charms equipped</span>`;
+                return;
+            }
+
+            // Find matching shop data to style the badge perfectly
+            const matchedItem = shopInventory.find(item => item.name === activePlayer.equippedItem);
+            if (matchedItem) {
+                const badgeElement = document.createElement('div');
+                badgeElement.className = `charm-badge ${matchedItem.cssClass}`;
+                badgeElement.innerHTML = `<span>${matchedItem.icon}</span> <span>${matchedItem.name}</span>`;
+                badgeCase.appendChild(badgeElement);
             }
         }
 
@@ -703,7 +760,7 @@
 
                     row.innerHTML = `
                         <div class="shop-item-info">
-                            <span class="item-name">${item.name}</span>
+                            <span class="item-name">${item.icon} ${item.name}</span>
                             <span class="item-cost">Price: $${item.price}</span>
                         </div>
                         <button class="${buttonClass}" ${isEquipped ? 'disabled' : ''} onclick="attemptPurchase('${item.name}', ${item.price})">
@@ -733,7 +790,6 @@
                     activeBuyer.equippedItem = itemName;
                     broadcastStateToAllClients();
                 } else {
-                    // Alert routing relative to context
                     if (targetPlayerId === localPlayerId) {
                         alert("Not enough money!");
                     }
