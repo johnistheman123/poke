@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Guess That Pokémon</title>
+    <title>Guess That Pokémon - Cross-Device Wireless Edition</title>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <style>
         :root {
             --primary-color: #ffcb05;
@@ -29,7 +30,7 @@
             border: 2px solid #333;
             border-radius: 12px;
             width: 380px;
-            min-height: 520px;
+            min-height: 540px;
             padding: 20px;
             box-shadow: 0 8px 16px rgba(0,0,0,0.15);
             box-sizing: border-box;
@@ -73,13 +74,54 @@
             transform: scale(0.98);
         }
 
-        /* Home Screen */
-        #home-screen {
-            justify-content: center;
-            gap: 40px;
+        button:disabled {
+            background-color: #b5b5b5;
+            cursor: not-allowed;
+            transform: none !important;
         }
 
-        /* Game Screen */
+        /* Home/Network Connection Screen Layout */
+        #home-screen {
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .network-config-panel {
+            width: 100%;
+            background: #f0f4ff;
+            padding: 15px;
+            border-radius: 8px;
+            box-sizing: border-box;
+            border: 1px dashed var(--secondary-color);
+            text-align: center;
+        }
+
+        .network-config-panel input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            box-sizing: border-box;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            font-size: 16px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        /* Game Screen Banner */
+        .turn-banner {
+            background-color: #ff3334;
+            color: white;
+            width: 100%;
+            text-align: center;
+            font-weight: bold;
+            padding: 6px 0;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+            box-shadow: inset 0 -3px 0 rgba(0,0,0,0.2);
+        }
+
         .stats-header {
             width: 100%;
             display: flex;
@@ -118,7 +160,6 @@
             transition: filter 0.3s ease;
         }
 
-        /* The Magic Silhouette Effect */
         .silhouette {
             filter: brightness(0) contrast(1);
         }
@@ -145,8 +186,9 @@
             transition: background 0.2s;
         }
 
-        .option-item:hover {
-            background: #f0f4ff;
+        .option-item.disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
         }
 
         .option-item input {
@@ -214,12 +256,23 @@
     <div id="home-screen" class="screen active">
         <div>
             <h1>POKÉMON</h1>
-            <h2 style="font-size: 18px; color: #666;">Guess That Pokémon!</h2>
+            <h2 style="font-size: 18px; color: #666;">Wireless Multiplayer Room</h2>
         </div>
-        <button onclick="navigateTo('game-screen')">START GAME</button>
+
+        <div class="network-config-panel">
+            <label style="font-weight: bold; color: var(--secondary-color);">Create or Join Room ID:</label>
+            <input type="text" id="room-id-input" placeholder="e.g., pallet-town-22" value="">
+            <div style="display: flex; gap: 10px; margin-top: 5px;">
+                <button onclick="initializeHostSession()" style="background-color: #2e7d32;">Host Lobby</button>
+                <button onclick="initializeGuestSession()">Join Lobby</button>
+            </div>
+        </div>
+        <p id="network-logs" style="font-size: 12px; color: #777; text-align: center; margin: 0; padding: 0 10px;">Status: Awaiting connection setup.</p>
     </div>
 
     <div id="game-screen" class="screen">
+        <div id="player-turn-banner" class="turn-banner">SYNCING NETWORK STATE...</div>
+
         <div class="stats-header">
             <div>Money: $<span id="money-display">0</span></div>
             <button class="shop-btn-nav" onclick="navigateTo('shop-screen')">Go to Shop</button>
@@ -231,19 +284,18 @@
             <img id="pokemon-target" class="pokemon-img silhouette" src="" alt="Pokemon Silhouette">
         </div>
 
-        <div class="options-container" id="options-box">
-            </div>
+        <div class="options-container" id="options-box"></div>
 
         <div class="action-buttons">
-            <button style="background-color: #e0e0e0; color: #333;" onclick="useHint()">Hint</button>
-            <button onclick="checkAnswer()">Final Answer</button>
+            <button id="hint-button" style="background-color: #e0e0e0; color: #333;" onclick="useHint()">Hint</button>
+            <button id="submit-button" onclick="checkAnswer()">Final Answer</button>
         </div>
     </div>
 
     <div id="success-screen" class="screen">
         <div class="result-title success-text">YAYAYAY!</div>
         <p style="text-align: center; font-size: 18px;">
-            You got it correct!<br>
+            <span id="success-turn-owner" style="font-weight: bold;">Player</span> got it correct!<br>
             <strong class="success-text">+10 points</strong>
         </p>
         
@@ -252,30 +304,29 @@
         </div>
         
         <div id="success-pokemon-reveal" style="text-align: center; font-weight: bold; margin-bottom: 20px; font-size: 18px;"></div>
-        <button onclick="nextRound()">Next Pokémon</button>
+        <button id="host-next-round-btn" style="display: none;" onclick="nextRound()">Next Pokémon</button>
     </div>
 
     <div id="fail-screen" class="screen">
         <div class="result-title fail-text">Nope try again</div>
-        <p style="text-align: center; color: #555;">That wasn't the right one.</p>
+        <p id="fail-screen-notice" style="text-align: center; color: #555;">That wasn't the right one.</p>
         
         <div class="action-buttons" style="flex-direction: column; width: 100%; margin-top: auto;">
-            <button onclick="navigateTo('game-screen')">Try Again</button>
-            <button style="background-color: #757575;" onclick="nextRound()">Skip Pokémon</button>
+            <button id="host-pass-turn-btn" style="display: none;" onclick="passTurnOnFailure()">Pass Turn to Next Player</button>
         </div>
     </div>
 
     <div id="shop-screen" class="screen">
         <div class="stats-header">
-            <div>Amount: $<span id="shop-money-display">0</span></div>
-            <div style="font-size: 11px; text-align: right;">Currently Equipped:<br><span id="equipped-item-display" style="color: var(--secondary-color);">None</span></div>
+            <div id="shop-owner-title" style="font-weight: bold; color: var(--secondary-color);">Your Inventory</div>
+            <div style="font-size: 11px; text-align: right;">Equipped:<br><span id="equipped-item-display" style="color: var(--secondary-color);">None</span></div>
         </div>
+        <div style="font-weight: bold; font-size: 14px; margin-bottom: 10px;">Amount: $<span id="shop-money-display">0</span></div>
         
         <h2>Shop</h2>
         <p style="font-size: 12px; color:#666; text-align:center; margin: 0 0 15px 0;">poki items for different types of prices</p>
 
-        <div class="shop-items-list" id="shop-list">
-            </div>
+        <div class="shop-items-list" id="shop-list"></div>
 
         <button style="background-color: #757575;" onclick="navigateTo('game-screen')">Back to Game</button>
     </div>
@@ -301,19 +352,7 @@
             { id: 17, name: "Dragonite", type: "Dragon/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/149.png" },
             { id: 18, name: "Meowth", type: "Normal", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/52.png" },
             { id: 19, name: "Mew", type: "Psychic", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/151.png" },
-            { id: 20, name: "Rayquaza", type: "Dragon/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/384.png" },
-            { id: 21, name: "Lugia", type: "Psychic/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/249.png" },
-            { id: 22, name: "Greninja", type: "Water/Dark", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/658.png" },
-            { id: 23, name: "Gardevoir", type: "Psychic/Fairy", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/282.png" },
-            { id: 24, name: "Mimikyu", type: "Ghost/Fairy", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/778.png" },
-            { id: 25, name: "Rowlet", type: "Grass/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/722.png" },
-            { id: 26, name: "Cyndaquil", type: "Fire", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/155.png" },
-            { id: 27, name: "Totodile", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/158.png" },
-            { id: 28, name: "Chikorita", type: "Grass", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/152.png" },
-            { id: 29, name: "Umbreon", type: "Dark", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/197.png" },
-            { id: 30, name: "Espeon", type: "Psychic", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/196.png" },
-            { id: 31, name: "Lapras", type: "Water/Ice", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/131.png" },
-            { id: 32, name: "Arceus", type: "Normal", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/493.png" }
+            { id: 20, name: "Rayquaza", type: "Dragon/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/384.png" }
         ];
 
         const shopInventory = [
@@ -322,132 +361,387 @@
             { id: 'item3', name: "Master Shiny Pass", price: 50 }
         ];
 
-        let playerMoney = 0;
+        // Global State & Network variables
+        let p2pPeerInstance = null;
+        let multiDeviceConnections = [];
+        let localPlayerId = "";
+        let amIHost = false;
+
+        let players = [];
+        let currentPlayerIndex = 0;
         let currentPokemon = null;
         let selectedOption = null;
-        let equippedItem = "None";
+        let synchronizedChoices = [];
 
-        function navigateTo(screenId) {
-            document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
-            document.getElementById(screenId).classList.add('active');
+        // Error safety overrides for missing imagery assets
+        document.getElementById('pokemon-target').onerror = function() {
+            this.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%23ccc' stroke-width='2'><circle cx='12' cy='12' r='10'/><line x1='12' y1='8' x2='12' y2='12'/><line x1='12' y1='16' x2='12.01' y2='16'/></svg>";
+        };
+        document.getElementById('reveal-success-img').onerror = function() {
+            this.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%23ccc' stroke-width='2'><circle cx='12' cy='12' r='10'/><line x1='12' y1='8' x2='12' y2='12'/><line x1='12' y1='16' x2='12.01' y2='16'/></svg>";
+        };
 
-            if (screenId === 'game-screen' && !currentPokemon) {
-                generateNewQuestion();
+        function updateNetworkStatusLog(text) {
+            document.getElementById('network-logs').innerText = "Status: " + text;
+        }
+
+        // --- NETWORK MODULE: HOST INITIALIZATION ---
+        function initializeHostSession() {
+            try {
+                const requestedRoomId = document.getElementById('room-id-input').value.trim();
+                if (!requestedRoomId) { alert("Please supply a unique Room ID name."); return; }
+
+                updateNetworkStatusLog("Reserving network namespace room...");
+                amIHost = true;
+                p2pPeerInstance = new Peer(requestedRoomId);
+
+                p2pPeerInstance.on('open', (id) => {
+                    localPlayerId = id;
+                    updateNetworkStatusLog(`Hosting room: "${id}". Awaiting remote players...`);
+                    players.push({ id: id, name: "Host (P1)", money: 0, equippedItem: "None" });
+                    navigateTo('game-screen');
+                });
+
+                p2pPeerInstance.on('connection', (incomingConn) => {
+                    setupConnectionInfrastructure(incomingConn);
+                });
+
+                p2pPeerInstance.on('error', (err) => {
+                    console.error("Hosting fault caught:", err);
+                    updateNetworkStatusLog("Room ID occupied. Choose a different name.");
+                    alert("This Room ID is taken! Try a different one.");
+                });
+            } catch (err) {
+                console.error("Host boot failure:", err);
             }
+        }
+
+        // --- NETWORK MODULE: GUEST CONNECTION ---
+        function initializeGuestSession() {
+            try {
+                const requestedRoomId = document.getElementById('room-id-input').value.trim();
+                if (!requestedRoomId) { alert("Please supply the Host's exact Room ID."); return; }
+
+                updateNetworkStatusLog("Reaching broker switchboard...");
+                amIHost = false;
+                p2pPeerInstance = new Peer(); // Client gets an auto-assigned hash ID
+
+                p2pPeerInstance.on('open', (assignedId) => {
+                    localPlayerId = assignedId;
+                    updateNetworkStatusLog("Tracing route to Host socket...");
+                    const outgoingConn = p2pPeerInstance.connect(requestedRoomId);
+                    setupConnectionInfrastructure(outgoingConn);
+                });
+
+                p2pPeerInstance.on('error', (err) => {
+                    console.error("Guest handshake crash:", err);
+                    updateNetworkStatusLog("Could not connect to target Room ID.");
+                });
+            } catch (err) {
+                console.error("Guest sync failure:", err);
+            }
+        }
+
+        // --- PROTOCOL: PIPELINE CAPTURE ---
+        function setupConnectionInfrastructure(conn) {
+            try {
+                if (amIHost) {
+                    multiDeviceConnections.push(conn);
+                    conn.on('open', () => {
+                        const guestPlayerNumber = players.length + 1;
+                        players.push({
+                            id: conn.peer,
+                            name: `Player ${guestPlayerNumber}`,
+                            money: 0,
+                            equippedItem: "None"
+                        });
+                        broadcastStateToAllClients();
+                    });
+                } else {
+                    multiDeviceConnections = [conn];
+                }
+
+                conn.on('data', (packet) => {
+                    try {
+                        processIncomingPacket(packet);
+                    } catch (err) {
+                        console.error("Packet routing caught error:", err);
+                    }
+                });
+
+                conn.on('close', () => {
+                    updateNetworkStatusLog("A peer disconnected from the session.");
+                });
+            } catch (err) {
+                console.error("Connection link instantiation crashed:", err);
+            }
+        }
+
+        // --- STATE DISTRIBUTION ROUTINES ---
+        function broadcastStateToAllClients() {
+            if (!amIHost) return;
+            const synchronizationPayload = {
+                type: "STATE_SYNC",
+                players: players,
+                currentPlayerIndex: currentPlayerIndex,
+                currentPokemon: currentPokemon,
+                synchronizedChoices: synchronizedChoices
+            };
+            multiDeviceConnections.forEach(conn => conn.send(synchronizationPayload));
             updateUI();
         }
 
+        function dispatchGuestActionToHost(actionName, actionValue) {
+            if (amIHost) return;
+            multiDeviceConnections[0].send({
+                type: "GUEST_ACTION",
+                action: actionName,
+                value: actionValue,
+                senderId: localPlayerId
+            });
+        }
+
+        function processIncomingPacket(packet) {
+            if (packet.type === "STATE_SYNC") {
+                players = packet.players;
+                currentPlayerIndex = packet.currentPlayerIndex;
+                currentPokemon = packet.currentPokemon;
+                synchronizedChoices = packet.synchronizedChoices;
+
+                if (document.getElementById('home-screen').classList.contains('active')) {
+                    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                    document.getElementById('game-screen').classList.add('active');
+                }
+                updateUI();
+            } 
+            else if (packet.type === "GUEST_ACTION" && amIHost) {
+                if (packet.action === "SUBMIT_GUESS") {
+                    selectedOption = packet.value;
+                    checkAnswer();
+                } else if (packet.action === "REQUEST_PURCHASE") {
+                    buyItem(packet.value.itemName, packet.value.price, packet.senderId);
+                }
+            }
+            else if (packet.type === "FORCE_NAVIGATE") {
+                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                document.getElementById(packet.screenTarget).classList.add('active');
+                updateUI();
+            }
+        }
+
+        // --- CORE APPLICATION INTERACTION LOOP ---
+        function navigateTo(screenId) {
+            try {
+                if (amIHost) {
+                    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                    document.getElementById(screenId).classList.add('active');
+                    
+                    multiDeviceConnections.forEach(conn => conn.send({
+                        type: "FORCE_NAVIGATE", 
+                        screenTarget: screenId
+                    }));
+                    updateUI();
+                } else {
+                    // Guests can navigate to their local instance of the shop, other screens follow the host
+                    if (screenId === 'shop-screen' || screenId === 'game-screen') {
+                        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                        document.getElementById(screenId).classList.add('active');
+                        updateUI();
+                    }
+                }
+            } catch (err) {
+                console.error("Navigation router exception caught:", err);
+            }
+        }
+
         function updateUI() {
-            document.getElementById('money-display').innerText = playerMoney;
-            document.getElementById('shop-money-display').innerText = playerMoney;
-            document.getElementById('equipped-item-display').innerText = equippedItem;
-            renderShop();
+            try {
+                const activeTurnPlayer = players[currentPlayerIndex];
+                const localProfile = players.find(p => p.id === localPlayerId) || { money: 0, equippedItem: "None", name: "Guest" };
+
+                if (!activeTurnPlayer) return;
+
+                // Game Board Displays
+                document.getElementById('player-turn-banner').innerText = `${activeTurnPlayer.name.toUpperCase()}'S TURN`;
+                document.getElementById('money-display').innerText = localProfile.money;
+                
+                // Shop Display Updates
+                document.getElementById('shop-owner-title').innerText = `${localProfile.name} Shop`;
+                document.getElementById('shop-money-display').innerText = localProfile.money;
+                document.getElementById('equipped-item-display').innerText = localProfile.equippedItem;
+                
+                document.getElementById('success-turn-owner').innerText = activeTurnPlayer.name;
+
+                // Input Lock System: Disable buttons if it is not your turn
+                const isMyTurn = (activeTurnPlayer.id === localPlayerId);
+                document.getElementById('submit-button').disabled = !isMyTurn;
+                document.getElementById('hint-button').disabled = !isMyTurn;
+
+                // Host Control Panel Visibility Overrides
+                document.getElementById('host-next-round-btn').style.display = amIHost ? 'block' : 'none';
+                document.getElementById('host-pass-turn-btn').style.display = amIHost ? 'block' : 'none';
+
+                if (currentPokemon) {
+                    document.getElementById('pokemon-target').src = currentPokemon.img;
+                    document.getElementById('reveal-success-img').src = currentPokemon.img;
+                    document.getElementById('success-pokemon-reveal').innerText = `It's ${currentPokemon.name}!`;
+                    drawSynchronizedOptions(isMyTurn);
+                }
+
+                renderShopInventory();
+            } catch (err) {
+                console.error("UI Canvas write execution failed:", err);
+            }
         }
 
         function generateNewQuestion() {
-            const randomIndex = Math.floor(Math.random() * pokemonDatabase.length);
-            currentPokemon = pokemonDatabase[randomIndex];
+            try {
+                if (!amIHost) return;
 
-            const imgEl = document.getElementById('pokemon-target');
-            imgEl.src = currentPokemon.img;
-            imgEl.classList.add('silhouette'); 
+                const randomIndex = Math.floor(Math.random() * pokemonDatabase.length);
+                currentPokemon = pokemonDatabase[randomIndex];
 
-            let options = [currentPokemon.name];
-            while (options.length < 4) {
-                let randomDecoy = pokemonDatabase[Math.floor(Math.random() * pokemonDatabase.length)].name;
-                if (!options.includes(randomDecoy)) {
-                    options.push(randomDecoy);
+                let choices = [currentPokemon.name];
+                while (choices.length < 4) {
+                    let decoy = pokemonDatabase[Math.floor(Math.random() * pokemonDatabase.length)].name;
+                    if (!choices.includes(decoy)) choices.push(decoy);
                 }
-            }
-            options.sort(() => Math.random() - 0.5);
+                choices.sort(() => Math.random() - 0.5);
+                synchronizedChoices = choices;
 
-            const optionsBox = document.getElementById('options-box');
-            optionsBox.innerHTML = '';
-            options.forEach((name, index) => {
-                const item = document.createElement('div');
-                item.className = 'option-item';
-                item.innerHTML = `
-                    <input type="radio" id="opt-${index}" name="pkmn-opt" value="${name}">
-                    <label for="opt-${index}" style="width:100%; cursor:pointer;">${name}</label>
+                broadcastStateToAllClients();
+            } catch (err) {
+                console.error("Question compilation routine fault handled:", err);
+                nextRound();
+            }
+        }
+
+        function drawSynchronizedOptions(isMyTurn) {
+            const boxContainer = document.getElementById('options-box');
+            boxContainer.innerHTML = '';
+
+            synchronizedChoices.forEach((name, idx) => {
+                const elementRow = document.createElement('div');
+                elementRow.className = `option-item ${!isMyTurn ? 'disabled' : ''}`;
+                elementRow.innerHTML = `
+                    <input type="radio" id="opt-${idx}" name="pkmn-opt" value="${name}" ${!isMyTurn ? 'disabled' : ''}>
+                    <label for="opt-${idx}" style="width:100%; cursor:pointer;">${name}</label>
                 `;
-                item.onclick = () => {
-                    document.getElementById(`opt-${index}`).checked = true;
+                elementRow.onclick = () => {
+                    if (!isMyTurn) return;
+                    document.getElementById(`opt-${idx}`).checked = true;
                     selectedOption = name;
                 };
-                optionsBox.appendChild(item);
+                boxContainer.appendChild(elementRow);
             });
-
-            selectedOption = null;
         }
 
         function useHint() {
-            if (currentPokemon) {
-                alert(`Hint: This Pokémon is a ${currentPokemon.type}-type!`);
-            }
+            if (!currentPokemon) return;
+            alert(`Hint: This Pokémon belongs to the ${currentPokemon.type} archetype!`);
         }
 
         function checkAnswer() {
-            if (!selectedOption) {
-                alert("Please pick an option first!");
+            if (!amIHost) {
+                if (!selectedOption) { alert("Please select an option first!"); return; }
+                dispatchGuestActionToHost("SUBMIT_GUESS", selectedOption);
                 return;
             }
 
-            if (selectedOption === currentPokemon.name) {
-                playerMoney += 10;
-                
-                document.getElementById('reveal-success-img').src = currentPokemon.img;
-                document.getElementById('success-pokemon-reveal').innerText = `It's ${currentPokemon.name}!`;
-                
-                updateUI();
-                navigateTo('success-screen');
-            } else {
-                navigateTo('fail-screen');
+            try {
+                if (selectedOption === currentPokemon.name) {
+                    players[currentPlayerIndex].money += 10;
+                    broadcastStateToAllClients();
+                    navigateTo('success-screen');
+                } else {
+                    document.getElementById('fail-screen-notice').innerText = `${players[currentPlayerIndex].name} guessed incorrectly.`;
+                    navigateTo('fail-screen');
+                }
+            } catch (err) {
+                console.error("Decision engine exception handled:", err);
+                nextRound();
             }
+        }
+
+        function shiftTurnPointers() {
+            currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
         }
 
         function nextRound() {
+            if (!amIHost) return;
             currentPokemon = null;
+            selectedOption = null;
+            shiftTurnPointers();
+            generateNewQuestion();
             navigateTo('game-screen');
         }
 
-        function renderShop() {
-            const listContainer = document.getElementById('shop-list');
-            listContainer.innerHTML = '';
-
-            shopInventory.forEach(item => {
-                const row = document.createElement('div');
-                row.className = 'shop-item';
-                
-                const isEquipped = equippedItem === item.name;
-                const buttonText = isEquipped ? 'Equipped' : 'Buy';
-                const buttonClass = isEquipped ? 'buy-btn equipped' : 'buy-btn';
-                const disabledAttr = isEquipped ? 'disabled' : '';
-
-                row.innerHTML = `
-                    <div class="shop-item-info">
-                        <span class="item-name">${item.name}</span>
-                        <span class="item-cost">Price: $${item.price}</span>
-                    </div>
-                    <button class="${buttonClass}" ${disabledAttr} onclick="buyItem('${item.name}', ${item.price})">
-                        ${buttonText}
-                    </button>
-                `;
-                listContainer.appendChild(row);
-            });
+        function passTurnOnFailure() {
+            if (!amIHost) return;
+            currentPokemon = null;
+            selectedOption = null;
+            shiftTurnPointers();
+            generateNewQuestion();
+            navigateTo('game-screen');
         }
 
-        function buyItem(itemName, price) {
-            if (playerMoney >= price) {
-                playerMoney -= price;
-                equippedItem = itemName;
-                alert(`Purchased and equipped ${itemName}!`);
-                updateUI();
-            } else {
-                alert("Not enough money!");
+        function renderShopInventory() {
+            try {
+                const listContainer = document.getElementById('shop-list');
+                if (!listContainer) return;
+                listContainer.innerHTML = '';
+
+                const localProfile = players.find(p => p.id === localPlayerId) || { money: 0, equippedItem: "None" };
+
+                shopInventory.forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'shop-item';
+                    
+                    const isEquipped = localProfile.equippedItem === item.name;
+                    const buttonText = isEquipped ? 'Equipped' : 'Buy';
+                    const buttonClass = isEquipped ? 'buy-btn equipped' : 'buy-btn';
+
+                    row.innerHTML = `
+                        <div class="shop-item-info">
+                            <span class="item-name">${item.name}</span>
+                            <span class="item-cost">Price: $${item.price}</span>
+                        </div>
+                        <button class="${buttonClass}" ${isEquipped ? 'disabled' : ''} onclick="attemptPurchase('${item.name}', ${item.price})">
+                            ${buttonText}
+                        </button>
+                    `;
+                    listContainer.appendChild(row);
+                });
+            } catch (err) {
+                console.error("Shop render pipeline crash intercepted:", err);
             }
         }
 
-        window.onload = () => { updateUI(); };
+        function attemptPurchase(itemName, price) {
+            if (!amIHost) {
+                dispatchGuestActionToHost("REQUEST_PURCHASE", { itemName: itemName, price: price });
+                return;
+            }
+            buyItem(itemName, price, localPlayerId);
+        }
+
+        function buyItem(itemName, price, targetPlayerId) {
+            try {
+                const activeBuyer = players.find(p => p.id === targetPlayerId);
+                if (activeBuyer && activeBuyer.money >= price) {
+                    activeBuyer.money -= price;
+                    activeBuyer.equippedItem = itemName;
+                    broadcastStateToAllClients();
+                } else {
+                    // Alert routing relative to context
+                    if (targetPlayerId === localPlayerId) {
+                        alert("Not enough money!");
+                    }
+                }
+            } catch (err) {
+                console.error("Transaction middleware intercept failure:", err);
+            }
+        }
     </script>
 </body>
 </html>
