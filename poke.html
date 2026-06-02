@@ -399,6 +399,26 @@
         <button style="background-color: #757575;" onclick="navigateTo('game-screen')">Back to Game</button>
     </div>
 
+    <div id="win-screen" class="screen">
+        <div class="result-title" style="color: #2e7d32; font-size: 32px;">🏆 CHAMPION! 🏆</div>
+        <p style="text-align: center; font-size: 18px; margin: 20px 0;">
+            <span id="win-player-name" style="font-weight: bold; color: var(--secondary-color);">Player</span><br>
+            <strong style="color: #2e7d32; font-size: 20px;">has won the game!</strong>
+        </p>
+        
+        <div style="text-align: center; margin: 20px 0;">
+            <div style="font-size: 16px; font-weight: bold; color: #666;">Final Score</div>
+            <div style="font-size: 24px; font-weight: bold; color: var(--secondary-color); margin: 10px 0;">$<span id="win-player-score">0</span></div>
+        </div>
+
+        <div style="background: #f0f4ff; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0; flex-grow: 1;">
+            <h3 style="margin-top: 0; color: var(--secondary-color);">Final Standings</h3>
+            <div id="final-standings" style="text-align: left; font-size: 14px;"></div>
+        </div>
+
+        <button style="background-color: #2e7d32;" onclick="restartGame()">Play Again</button>
+    </div>
+
     <script>
         const pokemonDatabase = [
             { id: 1, name: "Pikachu", type: "Electric", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png" },
@@ -420,7 +440,87 @@
             { id: 17, name: "Dragonite", type: "Dragon/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/149.png" },
             { id: 18, name: "Meowth", type: "Normal", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/52.png" },
             { id: 19, name: "Mew", type: "Psychic", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/151.png" },
-            { id: 20, name: "Rayquaza", type: "Dragon/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/384.png" }
+            { id: 20, name: "Rayquaza", type: "Dragon/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/384.png" },
+            { id: 21, name: "Raichu", type: "Electric", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/26.png" },
+            { id: 22, name: "Arcanine", type: "Fire", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/59.png" },
+            { id: 23, name: "Lapras", type: "Water/Ice", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/131.png" },
+            { id: 24, name: "Gyarados", type: "Water/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/130.png" },
+            { id: 25, name: "Alakazam", type: "Psychic", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/65.png" },
+            { id: 26, name: "Machamp", type: "Fighting", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/68.png" },
+            { id: 27, name: "Golem", type: "Rock/Ground", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/76.png" },
+            { id: 28, name: "Arbok", type: "Poison", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/24.png" },
+            { id: 29, name: "Weezing", type: "Poison", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/110.png" },
+            { id: 30, name: "Tangela", type: "Grass", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/114.png" },
+            { id: 31, name: "Wigglytuff", type: "Normal/Fairy", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/40.png" },
+            { id: 32, name: "Golbat", type: "Poison/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/42.png" },
+            { id: 33, name: "Exeggutor", type: "Grass/Psychic", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/103.png" },
+            { id: 34, name: "Marowak", type: "Ground", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/105.png" },
+            { id: 35, name: "Hitmonchan", type: "Fighting", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/107.png" },
+            { id: 36, name: "Hitmonlee", type: "Fighting", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/106.png" },
+            { id: 37, name: "Chansey", type: "Normal", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/113.png" },
+            { id: 38, name: "Kangaskhan", type: "Normal", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/115.png" },
+            { id: 39, name: "Horsea", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/116.png" },
+            { id: 40, name: "Seadragon", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/117.png" },
+            { id: 41, name: "Goldeen", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/118.png" },
+            { id: 42, name: "Staryu", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/120.png" },
+            { id: 43, name: "Starmie", type: "Water/Psychic", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/121.png" },
+            { id: 44, name: "Mr. Mime", type: "Psychic/Fairy", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/122.png" },
+            { id: 45, name: "Jynx", type: "Ice/Psychic", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/124.png" },
+            { id: 46, name: "Electabuzz", type: "Electric", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/125.png" },
+            { id: 47, name: "Magikarp", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/129.png" },
+            { id: 48, name: "Ditto", type: "Normal", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/132.png" },
+            { id: 49, name: "Vaporeon", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/134.png" },
+            { id: 50, name: "Jolteon", type: "Electric", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/135.png" },
+            { id: 51, name: "Flareon", type: "Fire", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/136.png" },
+            { id: 52, name: "Omanyte", type: "Rock/Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/138.png" },
+            { id: 53, name: "Kabuto", type: "Rock/Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/140.png" },
+            { id: 54, name: "Aerodactyl", type: "Rock/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/142.png" },
+            { id: 55, name: "Articuno", type: "Ice/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/144.png" },
+            { id: 56, name: "Zapdos", type: "Electric/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/145.png" },
+            { id: 57, name: "Moltres", type: "Fire/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/146.png" },
+            { id: 58, name: "Grimer", type: "Poison", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/88.png" },
+            { id: 59, name: "Haunter", type: "Ghost/Poison", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/artwork/93.png" },
+            { id: 60, name: "Kingler", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/99.png" },
+            { id: 61, name: "Machoke", type: "Fighting", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/67.png" },
+            { id: 62, name: "Geodude", type: "Rock/Ground", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/74.png" },
+            { id: 63, name: "Graveler", type: "Rock/Ground", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/75.png" },
+            { id: 64, name: "Cubone", type: "Ground", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/104.png" },
+            { id: 65, name: "Rhyhorn", type: "Ground/Rock", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/111.png" },
+            { id: 66, name: "Rhydon", type: "Ground/Rock", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/112.png" },
+            { id: 67, name: "Shellder", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/90.png" },
+            { id: 68, name: "Cloyster", type: "Water/Ice", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/91.png" },
+            { id: 69, name: "Gastly", type: "Ghost/Poison", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/92.png" },
+            { id: 70, name: "Onix", type: "Rock/Ground", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/95.png" },
+            { id: 71, name: "Drowzee", type: "Psychic", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/96.png" },
+            { id: 72, name: "Hypno", type: "Psychic", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/97.png" },
+            { id: 73, name: "Krabby", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/98.png" },
+            { id: 74, name: "Voltorb", type: "Electric", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/100.png" },
+            { id: 75, name: "Electrode", type: "Electric", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/101.png" },
+            { id: 76, name: "Exeggcute", type: "Grass/Psychic", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/102.png" },
+            { id: 77, name: "Magnemite", type: "Electric/Steel", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/81.png" },
+            { id: 78, name: "Magneton", type: "Electric/Steel", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/82.png" },
+            { id: 79, name: "Farfetchd", type: "Normal/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/83.png" },
+            { id: 80, name: "Doduo", type: "Normal/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/84.png" },
+            { id: 81, name: "Dodrio", type: "Normal/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/85.png" },
+            { id: 82, name: "Seel", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/86.png" },
+            { id: 83, name: "Dewgong", type: "Water/Ice", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/87.png" },
+            { id: 84, name: "Muk", type: "Poison", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/89.png" },
+            { id: 85, name: "Shellos", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/422.png" },
+            { id: 86, name: "Gastrodon", type: "Water/Ground", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/423.png" },
+            { id: 87, name: "Carvanha", type: "Water/Dark", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/318.png" },
+            { id: 88, name: "Sharpedo", type: "Water/Dark", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/319.png" },
+            { id: 89, name: "Wailmer", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/320.png" },
+            { id: 90, name: "Wailord", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/321.png" },
+            { id: 91, name: "Barboach", type: "Water/Ground", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/339.png" },
+            { id: 92, name: "Whiscash", type: "Water/Ground", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/340.png" },
+            { id: 93, name: "Corphish", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/341.png" },
+            { id: 94, name: "Crawdaunt", type: "Water/Dark", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/342.png" },
+            { id: 95, name: "Feebas", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/349.png" },
+            { id: 96, name: "Milotic", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/350.png" },
+            { id: 97, name: "Carvanha", type: "Water/Dark", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/318.png" },
+            { id: 98, name: "Whismur", type: "Normal", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/293.png" },
+            { id: 99, name: "Loudred", type: "Normal", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/294.png" },
+            { id: 100, name: "Exploud", type: "Normal", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/295.png" }
         ];
 
         const shopInventory = [
@@ -428,6 +528,9 @@
             { id: 'item2', name: "Ultra Ball Charm", price: 30, cssClass: "badge-ultra", icon: "🟡" },
             { id: 'item3', name: "Master Shiny Pass", price: 50, cssClass: "badge-master", icon: "🔮" }
         ];
+
+        // Game Configuration
+        const WIN_THRESHOLD = 100;
 
         // Global State & Network variables
         let p2pPeerInstance = null;
@@ -795,7 +898,13 @@
                 if (selectedOption === currentPokemon.name) {
                     players[currentPlayerIndex].money += 10;
                     broadcastStateToAllClients();
-                    navigateTo('success-screen');
+                    
+                    // Check for win condition
+                    if (players[currentPlayerIndex].money >= WIN_THRESHOLD) {
+                        showWinScreen(currentPlayerIndex);
+                    } else {
+                        navigateTo('success-screen');
+                    }
                 } else {
                     document.getElementById('fail-screen-notice').innerText = `${players[currentPlayerIndex].name} guessed incorrectly.`;
                     navigateTo('fail-screen');
@@ -826,6 +935,42 @@
             shiftTurnPointers();
             generateNewQuestion();
             navigateTo('game-screen');
+        }
+
+        function showWinScreen(winnerIndex) {
+            if (!amIHost) return;
+            const winner = players[winnerIndex];
+            document.getElementById('win-player-name').innerText = winner.name;
+            document.getElementById('win-player-score').innerText = winner.money;
+            
+            // Generate final standings
+            const standings = players
+                .sort((a, b) => b.money - a.money)
+                .map((p, idx) => `<div style="padding:8px; border-bottom:1px solid #ddd;"><strong>${idx + 1}. ${p.name}</strong>: $${p.money}</div>`)
+                .join('');
+            document.getElementById('final-standings').innerHTML = standings;
+            
+            navigateTo('win-screen');
+            multiDeviceConnections.forEach(conn => conn.send({
+                type: "FORCE_NAVIGATE", 
+                screenTarget: 'win-screen'
+            }));
+        }
+
+        function restartGame() {
+            if (!amIHost) return;
+            // Reset all player money and items
+            players.forEach(p => {
+                p.money = 0;
+                p.equippedItem = "None";
+            });
+            currentPlayerIndex = 0;
+            currentPokemon = null;
+            selectedOption = null;
+            synchronizedChoices = [];
+            generateNewQuestion();
+            navigateTo('game-screen');
+            broadcastStateToAllClients();
         }
 
         function renderShopInventory() {
