@@ -364,7 +364,7 @@
         <div class="result-title success-text">YAYAYAY!</div>
         <p style="text-align: center; font-size: 18px;">
             <span id="success-turn-owner" style="font-weight: bold;">Player</span> got it correct!<br>
-            <strong class="success-text">+10 points</strong>
+            <strong class="success-text" id="points-earned">+10 points</strong>
         </p>
         
         <div class="image-container" style="border: none; height: 140px;">
@@ -524,9 +524,9 @@
         ];
 
         const shopInventory = [
-            { id: 'item1', name: "Great Ball Badge", price: 15, cssClass: "badge-great", icon: "🔵" },
-            { id: 'item2', name: "Ultra Ball Charm", price: 30, cssClass: "badge-ultra", icon: "🟡" },
-            { id: 'item3', name: "Master Shiny Pass", price: 50, cssClass: "badge-master", icon: "🔮" }
+            { id: 'item1', name: "Great Ball Badge", price: 15, cssClass: "badge-great", icon: "🔵", perk: "points_bonus", perkValue: 2, description: "Earn +2 bonus points per correct guess" },
+            { id: 'item2', name: "Ultra Ball Charm", price: 30, cssClass: "badge-ultra", icon: "🟡", perk: "points_bonus", perkValue: 4, description: "Earn +4 bonus points per correct guess" },
+            { id: 'item3', name: "Master Shiny Pass", price: 50, cssClass: "badge-master", icon: "🔮", perk: "points_multiplier", perkValue: 2, description: "Double your points on every correct guess!" }
         ];
 
         // Game Configuration
@@ -759,6 +759,12 @@
                     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
                     document.getElementById(screenId).classList.add('active');
                     
+                    // Update points earned display if navigating to success screen
+                    if (screenId === 'success-screen' && currentPlayerIndex >= 0) {
+                        const earnedPoints = getPointsEarned(currentPlayerIndex);
+                        document.getElementById('points-earned').innerText = `+${earnedPoints} points`;
+                    }
+                    
                     multiDeviceConnections.forEach(conn => conn.send({
                         type: "FORCE_NAVIGATE", 
                         screenTarget: screenId
@@ -887,6 +893,23 @@
             alert(`Hint: This Pokémon belongs to the ${currentPokemon.type} archetype!`);
         }
 
+        function getPointsEarned(playerIndex) {
+            const player = players[playerIndex];
+            let points = 10;
+            
+            if (player.equippedItem && player.equippedItem !== "None") {
+                const equippedItem = shopInventory.find(item => item.name === player.equippedItem);
+                if (equippedItem) {
+                    if (equippedItem.perk === "points_bonus") {
+                        points += equippedItem.perkValue;
+                    } else if (equippedItem.perk === "points_multiplier") {
+                        points *= equippedItem.perkValue;
+                    }
+                }
+            }
+            return points;
+        }
+
         function checkAnswer() {
             if (!amIHost) {
                 if (!selectedOption) { alert("Please select an option first!"); return; }
@@ -896,7 +919,8 @@
 
             try {
                 if (selectedOption === currentPokemon.name) {
-                    players[currentPlayerIndex].money += 10;
+                    const earnedPoints = getPointsEarned(currentPlayerIndex);
+                    players[currentPlayerIndex].money += earnedPoints;
                     broadcastStateToAllClients();
                     
                     // Check for win condition
@@ -993,6 +1017,7 @@
                         <div class="shop-item-info">
                             <span class="item-name">${item.icon} ${item.name}</span>
                             <span class="item-cost">Price: $${item.price}</span>
+                            <span style="font-size: 12px; color: #2e7d32; margin-top: 4px; font-weight: bold;">${item.description}</span>
                         </div>
                         <button class="${buttonClass}" ${isEquipped ? 'disabled' : ''} onclick="attemptPurchase('${item.name}', ${item.price})">
                             ${buttonText}
