@@ -108,6 +108,29 @@
             font-weight: bold;
         }
 
+        .share-link-panel {
+            display: none;
+            margin-top: 12px;
+            border: 1px solid #ddd;
+            background: #fff;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: left;
+            font-size: 13px;
+            color: #333;
+            word-break: break-all;
+        }
+
+        .share-link-panel.active {
+            display: block;
+        }
+
+        .share-link-panel button {
+            width: auto;
+            margin-top: 8px;
+            padding: 8px 14px;
+        }
+
         /* Game Screen Banner */
         .turn-banner {
             background-color: #ff3334;
@@ -298,12 +321,23 @@
                 <button onclick="initializeHostSession()" style="background-color: #2e7d32;">Host Lobby</button>
                 <button onclick="initializeGuestSession()">Join Lobby</button>
             </div>
+            <div id="share-link-panel" class="share-link-panel">
+                <div><strong>Share this invite link:</strong></div>
+                <div id="share-link-text" style="margin-top: 8px; color: #1a237e;"></div>
+                <button onclick="copyShareLink()">Copy Link</button>
+            </div>
         </div>
         <p id="network-logs" style="font-size: 12px; color: #777; text-align: center; margin: 0; padding: 0 10px;">Status: Awaiting connection setup.</p>
     </div>
 
     <div id="game-screen" class="screen">
         <div id="player-turn-banner" class="turn-banner">SYNCING NETWORK STATE...</div>
+
+        <div id="share-link-game-panel" class="share-link-panel">
+            <div><strong>Share this invite link:</strong></div>
+            <div id="share-link-text-game" style="margin-top: 8px; color: #1a237e;"></div>
+            <button onclick="copyShareLink('share-link-text-game')">Copy Link</button>
+        </div>
 
         <div class="stats-header">
             <div>Money: $<span id="money-display">0</span></div>
@@ -400,6 +434,7 @@
         let multiDeviceConnections = [];
         let localPlayerId = "";
         let amIHost = false;
+        let autoJoinFromInvite = false;
 
         let players = [];
         let currentPlayerIndex = 0;
@@ -419,6 +454,56 @@
             document.getElementById('network-logs').innerText = "Status: " + text;
         }
 
+        function getQueryParam(name) {
+            const params = new URLSearchParams(window.location.search);
+            return params.get(name);
+        }
+
+        function buildShareableLink(roomId) {
+            const url = new URL(window.location.origin + window.location.pathname);
+            url.searchParams.set('room', roomId);
+            return url.toString();
+        }
+
+        function setShareableLink(roomId) {
+            const homePanel = document.getElementById('share-link-panel');
+            const gamePanel = document.getElementById('share-link-game-panel');
+            const homeLinkText = document.getElementById('share-link-text');
+            const gameLinkText = document.getElementById('share-link-text-game');
+            if (!roomId) {
+                homePanel.classList.remove('active');
+                gamePanel.classList.remove('active');
+                return;
+            }
+            const shareLink = buildShareableLink(roomId);
+            homeLinkText.innerText = shareLink;
+            gameLinkText.innerText = shareLink;
+            homePanel.classList.add('active');
+            gamePanel.classList.add('active');
+        }
+
+        function copyShareLink(targetId = 'share-link-text') {
+            const linkText = document.getElementById(targetId).innerText;
+            if (!linkText) return;
+            navigator.clipboard.writeText(linkText).then(() => {
+                alert('Invite link copied to clipboard!');
+            }).catch(() => {
+                prompt('Copy the invite link:', linkText);
+            });
+        }
+
+        function initializeFromInviteLink() {
+            const requestedRoomId = getQueryParam('room');
+            if (requestedRoomId) {
+                document.getElementById('room-id-input').value = requestedRoomId;
+                updateNetworkStatusLog('Invite link detected. Attempting to join lobby...');
+                autoJoinFromInvite = true;
+                initializeGuestSession();
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', initializeFromInviteLink);
+
         // --- NETWORK MODULE: HOST INITIALIZATION ---
         function initializeHostSession() {
             try {
@@ -433,6 +518,7 @@
                     localPlayerId = id;
                     updateNetworkStatusLog(`Hosting room: "${id}". Awaiting remote players...`);
                     players.push({ id: id, name: "Host (P1)", money: 0, equippedItem: "None" });
+                    setShareableLink(id);
                     navigateTo('game-screen');
                 });
 
