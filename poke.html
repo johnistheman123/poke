@@ -1022,8 +1022,8 @@
                 document.getElementById('hint-button').disabled = !isMyTurn;
 
                 // Host Control Panel Visibility Overrides
-                document.getElementById('host-next-round-btn').style.display = amIHost ? 'block' : 'none';
-                document.getElementById('host-pass-turn-btn').style.display = amIHost ? 'block' : 'none';
+                document.getElementById('host-next-round-btn').style.display = (amIHost || gameMode === 'single') ? 'block' : 'none';
+                document.getElementById('host-pass-turn-btn').style.display = (amIHost || gameMode === 'single') ? 'block' : 'none';
 
                 if (currentPokemon) {
                     document.getElementById('pokemon-target').src = currentPokemon.img;
@@ -1091,7 +1091,11 @@
                 choices.sort(() => Math.random() - 0.5);
                 synchronizedChoices = choices;
 
-                broadcastStateToAllClients();
+                if (gameMode === 'single') {
+                    updateUI();
+                } else {
+                    broadcastStateToAllClients();
+                }
             } catch (err) {
                 console.error("Question compilation routine fault handled:", err);
                 nextRound();
@@ -1450,21 +1454,29 @@
         }
 
         function checkAnswer() {
-            if (!amIHost) {
+            if (!amIHost && gameMode !== 'single') {
                 if (!selectedOption) { alert("Please select an option first!"); return; }
                 dispatchGuestActionToHost("SUBMIT_GUESS", selectedOption);
                 return;
             }
 
             try {
+                if (!selectedOption) { alert("Please select an option first!"); return; }
                 if (selectedOption === currentPokemon.name) {
                     const earnedPoints = getPointsEarned(currentPlayerIndex);
                     players[currentPlayerIndex].money += earnedPoints;
-                    broadcastStateToAllClients();
+                    if (gameMode === 'single') {
+                        updateUI();
+                    } else {
+                        broadcastStateToAllClients();
+                    }
                     
                     // Check for win condition
                     if (players[currentPlayerIndex].money >= WIN_THRESHOLD) {
                         showWinScreen(currentPlayerIndex);
+                    } else if (gameMode === 'single') {
+                        // Auto-advance to next Pokémon in singleplayer
+                        nextRound();
                     } else {
                         navigateTo('success-screen');
                     }
@@ -1483,25 +1495,29 @@
         }
 
         function nextRound() {
-            if (!amIHost) return;
+            if (!amIHost && gameMode !== 'single') return;
             currentPokemon = null;
             selectedOption = null;
-            shiftTurnPointers();
+            if (gameMode === 'multi') {
+                shiftTurnPointers();
+            }
             generateNewQuestion();
             navigateTo('game-screen');
         }
 
         function passTurnOnFailure() {
-            if (!amIHost) return;
+            if (!amIHost && gameMode !== 'single') return;
             currentPokemon = null;
             selectedOption = null;
-            shiftTurnPointers();
+            if (gameMode === 'multi') {
+                shiftTurnPointers();
+            }
             generateNewQuestion();
             navigateTo('game-screen');
         }
 
         function showWinScreen(winnerIndex) {
-            if (!amIHost) return;
+            if (!amIHost && gameMode !== 'single') return;
             const winner = players[winnerIndex];
             document.getElementById('win-player-name').innerText = winner.name;
             document.getElementById('win-player-score').innerText = winner.money;
@@ -1514,14 +1530,16 @@
             document.getElementById('final-standings').innerHTML = standings;
             
             navigateTo('win-screen');
-            multiDeviceConnections.forEach(conn => conn.send({
-                type: "FORCE_NAVIGATE", 
-                screenTarget: 'win-screen'
-            }));
+            if (gameMode !== 'single') {
+                multiDeviceConnections.forEach(conn => conn.send({
+                    type: "FORCE_NAVIGATE", 
+                    screenTarget: 'win-screen'
+                }));
+            }
         }
 
         function restartGame() {
-            if (!amIHost) return;
+            if (!amIHost && gameMode !== 'single') return;
             // Reset all player money and items
             players.forEach(p => {
                 p.money = 0;
