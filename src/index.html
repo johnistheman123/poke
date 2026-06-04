@@ -1,0 +1,1613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guess That Pokémon - Wireless Multiplayer</title>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #ffcb05;
+            --secondary-color: #3b4cca;
+            --bg-color: #eef2f7;
+            --card-bg: #ffffff;
+            --border-color: #ccc;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* Screen Container */
+        .screen {
+            background: var(--card-bg);
+            border: 2px solid #333;
+            border-radius: 12px;
+            width: 380px;
+            min-height: 540px;
+            padding: 20px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+            box-sizing: border-box;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        /* Typography & Buttons */
+        h1, h2 {
+            margin-top: 0;
+            color: var(--secondary-color);
+            text-align: center;
+        }
+
+        button {
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.1s, background-color 0.2s;
+            width: 100%;
+            margin: 5px 0;
+        }
+
+        button:hover {
+            background-color: #2a3a9e;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        button:disabled {
+            background-color: #b5b5b5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* Home/Network Connection Screen Layout */
+        #home-screen {
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .network-config-panel {
+            width: 100%;
+            background: #f0f4ff;
+            padding: 15px;
+            border-radius: 8px;
+            box-sizing: border-box;
+            border: 1px dashed var(--secondary-color);
+            text-align: center;
+        }
+
+        .network-config-panel input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            box-sizing: border-box;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            font-size: 16px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .share-link-panel {
+            display: none;
+            margin-top: 12px;
+            border: 1px solid #ddd;
+            background: #fff;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: left;
+            font-size: 13px;
+            color: #333;
+            word-break: break-all;
+        }
+
+        .share-link-panel.active {
+            display: block;
+        }
+
+        .share-link-panel button {
+            width: auto;
+            margin-top: 8px;
+            padding: 8px 14px;
+        }
+
+        /* Game Screen Banner */
+        .turn-banner {
+            background-color: #ff3334;
+            color: white;
+            width: 100%;
+            text-align: center;
+            font-weight: bold;
+            padding: 6px 0;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+            box-shadow: inset 0 -3px 0 rgba(0,0,0,0.2);
+        }
+
+        .stats-header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .shop-btn-nav {
+            background: var(--primary-color);
+            color: #333;
+            padding: 6px 12px;
+            width: auto;
+            font-size: 13px;
+        }
+
+        /* Badge Case Displays */
+        .badge-case-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            min-height: 34px;
+        }
+
+        .charm-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+            animation: popIn 0.3s ease;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .badge-great { background: linear-gradient(135deg, #1565c0, #00d2ff); border: 1px solid #0d47a1; }
+        .badge-ultra { background: linear-gradient(135deg, #37474f, #ffeb3b); color: #212121; border: 1px solid #212121; }
+        .badge-master { background: linear-gradient(135deg, #4a148c, #ec407a); border: 1px solid #311b92; box-shadow: 0 0 8px #ab47bc; }
+
+        .image-container {
+            width: 200px;
+            height: 200px;
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #fafafa;
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .pokemon-img {
+            max-width: 85%;
+            max-height: 85%;
+            object-fit: contain;
+            transition: filter 0.3s ease;
+        }
+
+        .silhouette {
+            filter: brightness(0) contrast(1);
+        }
+
+        .options-container {
+            width: 100%;
+            background: #f9f9f9;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+            box-sizing: border-box;
+            margin-bottom: 15px;
+        }
+
+        .option-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 6px;
+            cursor: pointer;
+            background: #fff;
+            border: 1px solid #ddd;
+            transition: background 0.2s;
+        }
+
+        .option-item.disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .option-item input {
+            margin-right: 12px;
+            transform: scale(1.2);
+        }
+
+        .action-buttons {
+            display: flex;
+            width: 100%;
+            gap: 10px;
+        }
+
+        /* Result Screens */
+        .result-title {
+            font-size: 28px;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .success-text { color: #2e7d32; }
+        .fail-text { color: #c62828; }
+
+        /* Shop Screen */
+        .shop-items-list {
+            width: 100%;
+            flex-grow: 1;
+            margin: 15px 0;
+        }
+
+        .shop-item {
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fafafa;
+        }
+
+        .shop-item-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .item-name { font-weight: bold; }
+        .item-cost { font-size: 12px; color: #666; }
+        
+        .buy-btn {
+            width: auto;
+            padding: 6px 16px;
+            font-size: 13px;
+            background-color: #2e7d32;
+        }
+        .buy-btn.equipped {
+            background-color: #757575;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="home-screen" class="screen active">
+        <div>
+            <h1>POKÉMON</h1>
+            <h2 id="home-mode-title" style="font-size: 18px; color: #666;">Choose a game mode</h2>
+        </div>
+
+        <div class="network-config-panel">
+            <div style="display:flex; gap:10px; margin-bottom:12px;">
+                <button id="mode-single-btn" onclick="selectGameMode('single', true)" style="flex:1; background-color: #2e7d32; color: white;">Singleplayer</button>
+                <button id="mode-multi-btn" onclick="selectGameMode('multi')" style="flex:1; background-color: #3b4cca; color: white;">Multiplayer</button>
+            </div>
+            <div id="multiplayer-panel">
+                <label style="font-weight: bold; color: var(--secondary-color);">Create or Join Room ID:</label>
+                <input type="text" id="room-id-input" placeholder="e.g., pallet-town-22" value="">
+                <div style="display: flex; gap: 10px; margin-top: 5px;">
+                    <button onclick="initializeHostSession()" style="background-color: #2e7d32;">Host Lobby</button>
+                    <button onclick="initializeGuestSession()">Join Lobby</button>
+                </div>
+                <button id="start-multiplayer-btn" style="display:none; width:100%; margin-top:10px; background-color:#4a148c; color:white;" onclick="startMultiplayerGame()">Start Multiplayer Game</button>
+                <div id="share-link-panel" class="share-link-panel">
+                    <div><strong>Share this invite link:</strong></div>
+                    <div id="share-link-text" style="margin-top: 8px; color: #1a237e;"></div>
+                    <button onclick="copyShareLink()">Copy Link</button>
+                </div>
+            </div>
+            <button id="start-single-btn" style="display:none; width:100%; margin-top:10px; background-color:#2e7d32; color:white;" onclick="startSingleplayerGame()">Start Singleplayer</button>
+        </div>
+        <p id="network-logs" style="font-size: 12px; color: #777; text-align: center; margin: 0; padding: 0 10px;">Status: Choose a mode to begin.</p>
+    </div>
+
+    <div id="game-screen" class="screen">
+        <div id="player-turn-banner" class="turn-banner">SYNCING NETWORK STATE...</div>
+
+        <div id="share-link-game-panel" class="share-link-panel">
+            <div><strong>Share this invite link:</strong></div>
+            <div id="share-link-text-game" style="margin-top: 8px; color: #1a237e;"></div>
+            <button onclick="copyShareLink('share-link-text-game')">Copy Link</button>
+        </div>
+
+        <div class="stats-header">
+            <div>
+                <div>Money: $<span id="money-display">0</span></div>
+                <div style="font-size:12px; color:#555; margin-top:4px;">Capture Progress: <span id="capture-progress-display">0/3</span></div>
+            </div>
+            <div style="display:flex; gap:10px; flex-direction:column; width:100%;">
+                <button class="shop-btn-nav" onclick="navigateTo('shop-screen')">Go to Shop</button>
+                <button id="battle-mode-btn" class="shop-btn-nav" style="background:#4a148c;" onclick="navigateTo('battle-screen')">Battle Mode</button>
+            </div>
+        </div>
+        
+        <h2>Guess that Pokémon</h2>
+
+        <div id="badge-case" class="badge-case-container"></div>
+
+        <div class="image-container">
+            <img id="pokemon-target" class="pokemon-img silhouette" src="" alt="Pokemon Silhouette">
+        </div>
+
+        <div class="options-container" id="options-box"></div>
+
+        <div id="team-panel" style="width:100%; background:#f5f5ff; border:1px solid #ddd; border-radius:8px; padding:12px; margin-bottom:15px; box-sizing:border-box;">
+            <div style="font-weight:bold; margin-bottom:8px; color:#333;">Team</div>
+            <div id="team-list" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+        </div>
+
+        <div class="action-buttons">
+            <button id="hint-button" style="background-color: #e0e0e0; color: #333;" onclick="useHint()">Hint</button>
+            <button id="submit-button" onclick="checkAnswer()">Final Answer</button>
+        </div>
+    </div>
+
+    <div id="success-screen" class="screen">
+        <div class="result-title success-text">YAYAYAY!</div>
+        <p style="text-align: center; font-size: 18px;">
+            <span id="success-turn-owner" style="font-weight: bold;">Player</span> got it correct!<br>
+            <strong class="success-text" id="points-earned">+10 points</strong>
+        </p>
+        
+        <div class="image-container" style="border: none; height: 140px;">
+            <img id="reveal-success-img" class="pokemon-img" src="" alt="Revealed Pokemon">
+        </div>
+        
+        <div id="success-pokemon-reveal" style="text-align: center; font-weight: bold; margin-bottom: 20px; font-size: 18px;"></div>
+        <div id="capture-progress-section" style="display:none; width:100%; margin-bottom:12px;">
+            <div style="display:flex; justify-content:space-between; font-size:12px; color:#333; margin-bottom:6px;">
+                <span>Capture Progress</span>
+                <span id="capture-bar-text">0 / 0</span>
+            </div>
+            <div style="width:100%; height:12px; background:#ddd; border-radius:999px; overflow:hidden;">
+                <div id="capture-bar-fill" style="width:0%; height:100%; background:#1565c0; transition: width 0.2s ease;"></div>
+            </div>
+        </div>
+        <button id="catch-button" style="display: none; background-color: #1565c0;" onclick="attemptCaptureHit()">Attempt Capture</button>
+        <button id="host-next-round-btn" style="display: none;" onclick="nextRound()">Next Pokémon</button>
+    </div>
+
+    <div id="fail-screen" class="screen">
+        <div class="result-title fail-text">Nope try again</div>
+        <p id="fail-screen-notice" style="text-align: center; color: #555;">That wasn't the right one.</p>
+        
+        <div class="action-buttons" style="flex-direction: column; width: 100%; margin-top: auto;">
+            <button id="host-pass-turn-btn" style="display: none;" onclick="passTurnOnFailure()">Pass Turn to Next Player</button>
+        </div>
+    </div>
+
+    <div id="shop-screen" class="screen">
+        <div class="stats-header">
+            <div id="shop-owner-title" style="font-weight: bold; color: var(--secondary-color);">Your Inventory</div>
+            <div style="font-size: 11px; text-align: right;">Equipped:<br><span id="equipped-item-display" style="color: var(--secondary-color);">None</span></div>
+        </div>
+        <div style="font-weight: bold; font-size: 14px; margin-bottom: 10px;">Amount: $<span id="shop-money-display">0</span></div>
+        
+        <h2>Shop</h2>
+        <p style="font-size: 12px; color:#666; text-align:center; margin: 0 0 15px 0;">poki items for different types of prices</p>
+
+        <div class="shop-items-list" id="shop-list"></div>
+
+        <button style="background-color: #757575;" onclick="navigateTo('game-screen')">Back to Game</button>
+    </div>
+
+    <div id="battle-screen" class="screen">
+        <div class="stats-header">
+            <div style="font-weight: bold; color: var(--secondary-color);">Battle Mode</div>
+            <div style="font-size: 11px; text-align: right;">Your Team Size: <span id="battle-team-size">0</span></div>
+        </div>
+        <h2>Select Your Pokémon</h2>
+        <div id="battle-your-team" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fafafa;"></div>
+
+        <h2>Choose Opponent</h2>
+        <div style="display:flex; gap:10px; margin-bottom:10px; align-items:center;">
+            <select id="battle-opponent-select" style="flex:1; padding:10px; border-radius:8px; border:1px solid #ccc;" onchange="renderOpponentTeam()"></select>
+            <button class="shop-btn-nav" style="background:#1976d2; width:auto;" onclick="startBattle()">Start Battle</button>
+        </div>
+
+        <div id="battle-opponent-team" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fafafa;"></div>
+
+        <div id="battle-log" style="min-height:92px; padding:12px; border-radius:8px; background:#fff; border:1px solid #ddd; color:#333; font-size:14px; line-height:1.4;"></div>
+
+        <button style="background-color: #757575; margin-top: 15px;" onclick="navigateTo('game-screen')">Back to Game</button>
+    </div>
+
+    <div id="win-screen" class="screen">
+        <div class="result-title" style="color: #2e7d32; font-size: 32px;">🏆 CHAMPION! 🏆</div>
+        <p style="text-align: center; font-size: 18px; margin: 20px 0;">
+            <span id="win-player-name" style="font-weight: bold; color: var(--secondary-color);">Player</span><br>
+            <strong style="color: #2e7d32; font-size: 20px;">has won the game!</strong>
+        </p>
+        
+        <div style="text-align: center; margin: 20px 0;">
+            <div style="font-size: 16px; font-weight: bold; color: #666;">Final Score</div>
+            <div style="font-size: 24px; font-weight: bold; color: var(--secondary-color); margin: 10px 0;">$<span id="win-player-score">0</span></div>
+        </div>
+
+        <div style="background: #f0f4ff; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0; flex-grow: 1;">
+            <h3 style="margin-top: 0; color: var(--secondary-color);">Final Standings</h3>
+            <div id="final-standings" style="text-align: left; font-size: 14px;"></div>
+        </div>
+
+        <button style="background-color: #2e7d32;" onclick="restartGame()">Play Again</button>
+    </div>
+
+    <script>
+        const pokemonDatabase = [
+            { id: 1, name: "Pikachu", type: "Electric", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png" },
+            { id: 2, name: "Charmander", type: "Fire", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/4.png" },
+            { id: 3, name: "Bulbasaur", type: "Grass", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/1.png" },
+            { id: 4, name: "Squirtle", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png" },
+            { id: 5, name: "Eevee", type: "Normal", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/133.png" },
+            { id: 6, name: "Gengar", type: "Ghost", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/94.png" },
+            { id: 7, name: "Snorlax", type: "Normal", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/143.png" },
+            { id: 8, name: "Mewtwo", type: "Psychic", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/150.png" },
+            { id: 9, name: "Jigglypuff", type: "Fairy", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/39.png" },
+            { id: 10, name: "Lucario", type: "Fighting/Steel", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/448.png" },
+            { id: 11, name: "Togepi", type: "Fairy", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/175.png" },
+            { id: 12, name: "Mudkip", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/258.png" },
+            { id: 13, name: "Charizard", type: "Fire/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/6.png" },
+            { id: 14, name: "Blastoise", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/9.png" },
+            { id: 15, name: "Venusaur", type: "Grass/Poison", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/3.png" },
+            { id: 16, name: "Psyduck", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/54.png" },
+            { id: 17, name: "Dragonite", type: "Dragon/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/149.png" },
+            { id: 18, name: "Meowth", type: "Normal", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/52.png" },
+            { id: 19, name: "Mew", type: "Psychic", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/151.png" },
+            { id: 20, name: "Rayquaza", type: "Dragon/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/384.png" },
+            { id: 21, name: "Raichu", type: "Electric", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/26.png" },
+            { id: 22, name: "Arcanine", type: "Fire", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/59.png" },
+            { id: 23, name: "Lapras", type: "Water/Ice", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/131.png" },
+            { id: 24, name: "Gyarados", type: "Water/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/130.png" },
+            { id: 25, name: "Alakazam", type: "Psychic", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/65.png" },
+            { id: 26, name: "Machamp", type: "Fighting", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/68.png" },
+            { id: 27, name: "Golem", type: "Rock/Ground", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/76.png" },
+            { id: 28, name: "Arbok", type: "Poison", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/24.png" },
+            { id: 29, name: "Weezing", type: "Poison", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/110.png" },
+            { id: 30, name: "Tangela", type: "Grass", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/114.png" },
+            { id: 31, name: "Wigglytuff", type: "Normal/Fairy", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/40.png" },
+            { id: 32, name: "Golbat", type: "Poison/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/42.png" },
+            { id: 33, name: "Exeggutor", type: "Grass/Psychic", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/103.png" },
+            { id: 34, name: "Marowak", type: "Ground", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/105.png" },
+            { id: 35, name: "Hitmonchan", type: "Fighting", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/107.png" },
+            { id: 36, name: "Hitmonlee", type: "Fighting", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/106.png" },
+            { id: 37, name: "Chansey", type: "Normal", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/113.png" },
+            { id: 38, name: "Kangaskhan", type: "Normal", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/115.png" },
+            { id: 39, name: "Horsea", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/116.png" },
+            { id: 40, name: "Seadragon", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/117.png" },
+            { id: 41, name: "Goldeen", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/118.png" },
+            { id: 42, name: "Staryu", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/120.png" },
+            { id: 43, name: "Starmie", type: "Water/Psychic", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/121.png" },
+            { id: 44, name: "Mr. Mime", type: "Psychic/Fairy", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/122.png" },
+            { id: 45, name: "Jynx", type: "Ice/Psychic", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/124.png" },
+            { id: 46, name: "Electabuzz", type: "Electric", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/125.png" },
+            { id: 47, name: "Magikarp", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/129.png" },
+            { id: 48, name: "Ditto", type: "Normal", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/132.png" },
+            { id: 49, name: "Vaporeon", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/134.png" },
+            { id: 50, name: "Jolteon", type: "Electric", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/135.png" },
+            { id: 51, name: "Flareon", type: "Fire", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/136.png" },
+            { id: 52, name: "Omanyte", type: "Rock/Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/138.png" },
+            { id: 53, name: "Kabuto", type: "Rock/Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/140.png" },
+            { id: 54, name: "Aerodactyl", type: "Rock/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/142.png" },
+            { id: 55, name: "Articuno", type: "Ice/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/144.png" },
+            { id: 56, name: "Zapdos", type: "Electric/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/145.png" },
+            { id: 57, name: "Moltres", type: "Fire/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/146.png" },
+            { id: 58, name: "Grimer", type: "Poison", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/88.png" },
+            { id: 59, name: "Haunter", type: "Ghost/Poison", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/artwork/93.png" },
+            { id: 60, name: "Kingler", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/99.png" },
+            { id: 61, name: "Machoke", type: "Fighting", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/67.png" },
+            { id: 62, name: "Geodude", type: "Rock/Ground", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/74.png" },
+            { id: 63, name: "Graveler", type: "Rock/Ground", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/75.png" },
+            { id: 64, name: "Cubone", type: "Ground", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/104.png" },
+            { id: 65, name: "Rhyhorn", type: "Ground/Rock", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/111.png" },
+            { id: 66, name: "Rhydon", type: "Ground/Rock", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/112.png" },
+            { id: 67, name: "Shellder", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/90.png" },
+            { id: 68, name: "Cloyster", type: "Water/Ice", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/91.png" },
+            { id: 69, name: "Gastly", type: "Ghost/Poison", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/92.png" },
+            { id: 70, name: "Onix", type: "Rock/Ground", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/95.png" },
+            { id: 71, name: "Drowzee", type: "Psychic", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/96.png" },
+            { id: 72, name: "Hypno", type: "Psychic", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/97.png" },
+            { id: 73, name: "Krabby", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/98.png" },
+            { id: 74, name: "Voltorb", type: "Electric", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/100.png" },
+            { id: 75, name: "Electrode", type: "Electric", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/101.png" },
+            { id: 76, name: "Exeggcute", type: "Grass/Psychic", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/102.png" },
+            { id: 77, name: "Magnemite", type: "Electric/Steel", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/81.png" },
+            { id: 78, name: "Magneton", type: "Electric/Steel", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/82.png" },
+            { id: 79, name: "Farfetchd", type: "Normal/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/83.png" },
+            { id: 80, name: "Doduo", type: "Normal/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/84.png" },
+            { id: 81, name: "Dodrio", type: "Normal/Flying", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/85.png" },
+            { id: 82, name: "Seel", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/86.png" },
+            { id: 83, name: "Dewgong", type: "Water/Ice", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/87.png" },
+            { id: 84, name: "Muk", type: "Poison", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/89.png" },
+            { id: 85, name: "Shellos", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/422.png" },
+            { id: 86, name: "Gastrodon", type: "Water/Ground", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/423.png" },
+            { id: 87, name: "Carvanha", type: "Water/Dark", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/318.png" },
+            { id: 88, name: "Sharpedo", type: "Water/Dark", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/319.png" },
+            { id: 89, name: "Wailmer", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/320.png" },
+            { id: 90, name: "Wailord", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/321.png" },
+            { id: 91, name: "Barboach", type: "Water/Ground", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/339.png" },
+            { id: 92, name: "Whiscash", type: "Water/Ground", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/340.png" },
+            { id: 93, name: "Corphish", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/341.png" },
+            { id: 94, name: "Crawdaunt", type: "Water/Dark", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/342.png" },
+            { id: 95, name: "Feebas", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/349.png" },
+            { id: 96, name: "Milotic", type: "Water", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/350.png" },
+            { id: 97, name: "Carvanha", type: "Water/Dark", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/318.png" },
+            { id: 98, name: "Whismur", type: "Normal", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/293.png" },
+            { id: 99, name: "Loudred", type: "Normal", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/294.png" },
+            { id: 100, name: "Exploud", type: "Normal", img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/295.png" }
+        ];
+
+        const shopInventory = [
+            { id: 'item1', name: "Great Ball Badge", price: 15, cssClass: "badge-great", icon: "🔵", perk: "points_bonus", perkValue: 2, description: "Earn +2 bonus points per correct guess" },
+            { id: 'item2', name: "Ultra Ball Charm", price: 30, cssClass: "badge-ultra", icon: "🟡", perk: "points_bonus", perkValue: 4, description: "Earn +4 bonus points per correct guess" },
+            { id: 'item3', name: "Master Shiny Pass", price: 50, cssClass: "badge-master", icon: "🔮", perk: "points_multiplier", perkValue: 2, description: "Double your points on every correct guess!" }
+        ];
+
+        const battleAIOpponents = [
+            {
+                id: 'ai-brock',
+                name: 'Brock',
+                team: [
+                    findPokemonByName('Onix'),
+                    findPokemonByName('Geodude'),
+                    findPokemonByName('Graveler')
+                ]
+            },
+            {
+                id: 'ai-misty',
+                name: 'Misty',
+                team: [
+                    findPokemonByName('Starmie'),
+                    findPokemonByName('Staryu'),
+                    findPokemonByName('Lapras')
+                ]
+            },
+            {
+                id: 'ai-surge',
+                name: 'Lt. Surge',
+                team: [
+                    findPokemonByName('Raichu'),
+                    findPokemonByName('Electabuzz'),
+                    findPokemonByName('Magneton')
+                ]
+            },
+            {
+                id: 'ai-sabrina',
+                name: 'Sabrina',
+                team: [
+                    findPokemonByName('Alakazam'),
+                    findPokemonByName('Mr. Mime'),
+                    findPokemonByName('Hypno')
+                ]
+            },
+            {
+                id: 'ai-koga',
+                name: 'Koga',
+                team: [
+                    findPokemonByName('Golbat'),
+                    findPokemonByName('Haunter'),
+                    findPokemonByName('Weezing')
+                ]
+            },
+            {
+                id: 'ai-lance',
+                name: 'Lance',
+                team: [
+                    findPokemonByName('Dragonite'),
+                    findPokemonByName('Gyarados'),
+                    findPokemonByName('Charizard')
+                ]
+            }
+        ];
+
+        function findPokemonByName(name) {
+            return pokemonDatabase.find(p => p.name === name) || { name, type: 'Normal', img: '' };
+        }
+
+        // Game Configuration
+        const WIN_THRESHOLD = 100;
+        const BASE_CAPTURE_THRESHOLD = 3;
+        const MAX_TEAM_SIZE = 6;
+
+        // Capture State
+        let currentCaptureProgress = 0;
+        let currentCatchTarget = BASE_CAPTURE_THRESHOLD;
+
+        // Game Mode State
+        let gameMode = 'single';
+        let multiplayerStarted = false;
+
+        // Global State & Network variables
+        let p2pPeerInstance = null;
+        let multiDeviceConnections = [];
+        let localPlayerId = "";
+        let amIHost = false;
+        let autoJoinFromInvite = false;
+
+        let players = [];
+        let currentPlayerIndex = 0;
+        let currentPokemon = null;
+        let selectedOption = null;
+        let synchronizedChoices = [];
+        let selectedBattlePokemon = null;
+        let selectedOpponentPlayerId = null;
+        let selectedOpponentPokemon = null;
+
+        // Error safety overrides for missing imagery assets
+        document.getElementById('pokemon-target').onerror = function() {
+            this.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%23ccc' stroke-width='2'><circle cx='12' cy='12' r='10'/><line x1='12' y1='8' x2='12' y2='12'/><line x1='12' y1='16' x2='12.01' y2='16'/></svg>";
+        };
+        document.getElementById('reveal-success-img').onerror = function() {
+            this.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%23ccc' stroke-width='2'><circle cx='12' cy='12' r='10'/><line x1='12' y1='8' x2='12' y2='12'/><line x1='12' y1='16' x2='12.01' y2='16'/></svg>";
+        };
+
+        function updateNetworkStatusLog(text) {
+            document.getElementById('network-logs').innerText = "Status: " + text;
+        }
+
+        function getQueryParam(name) {
+            const params = new URLSearchParams(window.location.search);
+            return params.get(name);
+        }
+
+        function buildShareableLink(roomId) {
+            const url = new URL(window.location.origin + window.location.pathname);
+            url.searchParams.set('room', roomId);
+            return url.toString();
+        }
+
+        function setShareableLink(roomId) {
+            const homePanel = document.getElementById('share-link-panel');
+            const gamePanel = document.getElementById('share-link-game-panel');
+            const homeLinkText = document.getElementById('share-link-text');
+            const gameLinkText = document.getElementById('share-link-text-game');
+            if (!roomId) {
+                homePanel.classList.remove('active');
+                gamePanel.classList.remove('active');
+                return;
+            }
+            const shareLink = buildShareableLink(roomId);
+            homeLinkText.innerText = shareLink;
+            gameLinkText.innerText = shareLink;
+            homePanel.classList.add('active');
+            gamePanel.classList.add('active');
+        }
+
+        function copyShareLink(targetId = 'share-link-text') {
+            const linkText = document.getElementById(targetId).innerText;
+            if (!linkText) return;
+            navigator.clipboard.writeText(linkText).then(() => {
+                alert('Invite link copied to clipboard!');
+            }).catch(() => {
+                prompt('Copy the invite link:', linkText);
+            });
+        }
+
+        function initializeFromInviteLink() {
+            const requestedRoomId = getQueryParam('room');
+            if (requestedRoomId) {
+                selectGameMode('multi');
+                document.getElementById('room-id-input').value = requestedRoomId;
+                updateNetworkStatusLog('Invite link detected. Attempting to join lobby...');
+                autoJoinFromInvite = true;
+                initializeGuestSession();
+            }
+        }
+
+        function selectGameMode(mode, autoStart = false) {
+            gameMode = mode;
+            const multiPanel = document.getElementById('multiplayer-panel');
+            const startSingleBtn = document.getElementById('start-single-btn');
+            const startMultiBtn = document.getElementById('start-multiplayer-btn');
+            const modeSingleBtn = document.getElementById('mode-single-btn');
+            const modeMultiBtn = document.getElementById('mode-multi-btn');
+
+            if (mode === 'single') {
+                multiPanel.style.display = 'none';
+                startSingleBtn.style.display = 'block';
+                startMultiBtn.style.display = 'none';
+                modeSingleBtn.style.opacity = '1';
+                modeMultiBtn.style.opacity = '0.7';
+                updateNetworkStatusLog('Singleplayer selected. Game launching...');
+                if (autoStart) {
+                    startSingleplayerGame();
+                    return;
+                }
+            } else {
+                multiPanel.style.display = 'block';
+                startSingleBtn.style.display = 'none';
+                startMultiBtn.style.display = 'inline-block';
+                modeSingleBtn.style.opacity = '0.7';
+                modeMultiBtn.style.opacity = '1';
+                updateNetworkStatusLog('Multiplayer selected. Enter a room ID to host or join.');
+            }
+        }
+
+        function startSingleplayerGame() {
+            gameMode = 'single';
+            amIHost = false;
+            multiplayerStarted = false;
+            localPlayerId = 'singleplayer';
+            players = [{ id: localPlayerId, name: 'Player', money: 0, equippedItem: 'None', team: [] }];
+            currentPlayerIndex = 0;
+            currentPokemon = null;
+            selectedOption = null;
+            synchronizedChoices = [];
+            currentCaptureProgress = 0;
+            currentCatchTarget = BASE_CAPTURE_THRESHOLD;
+            setShareableLink('');
+            updateNetworkStatusLog('Starting singleplayer game...');
+            navigateTo('game-screen');
+            generateNewQuestion();
+        }
+
+        function startMultiplayerGame() {
+            if (!amIHost) {
+                alert('Only the host can start multiplayer games.');
+                return;
+            }
+            multiplayerStarted = true;
+            currentPokemon = null;
+            selectedOption = null;
+            synchronizedChoices = [];
+            currentCaptureProgress = 0;
+            currentCatchTarget = BASE_CAPTURE_THRESHOLD;
+            updateNetworkStatusLog('Multiplayer game started!');
+            document.getElementById('start-multiplayer-btn').style.display = 'none';
+            generateNewQuestion();
+            navigateTo('game-screen');
+            broadcastStateToAllClients();
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            selectGameMode('single', false);
+            initializeFromInviteLink();
+        });
+
+        // --- NETWORK MODULE: HOST INITIALIZATION ---
+        function initializeHostSession() {
+            try {
+                const requestedRoomId = document.getElementById('room-id-input').value.trim();
+                if (!requestedRoomId) { alert("Please supply a unique Room ID name."); return; }
+
+                updateNetworkStatusLog("Reserving network namespace room...");
+                gameMode = 'multi';
+                amIHost = true;
+                p2pPeerInstance = new Peer(requestedRoomId);
+
+                p2pPeerInstance.on('open', (id) => {
+                    localPlayerId = id;
+                    updateNetworkStatusLog(`Hosting room: "${id}". Awaiting remote players...");
+                    players = [{ id: id, name: "Host (P1)", money: 0, equippedItem: "None", team: [] }];
+                    setShareableLink(id);
+                    const startMultiBtn = document.getElementById('start-multiplayer-btn');
+                    if (startMultiBtn) startMultiBtn.style.display = 'inline-block';
+                });
+
+                p2pPeerInstance.on('connection', (incomingConn) => {
+                    setupConnectionInfrastructure(incomingConn);
+                });
+
+                p2pPeerInstance.on('error', (err) => {
+                    console.error("Hosting fault caught:", err);
+                    updateNetworkStatusLog("Room ID occupied. Choose a different name.");
+                    alert("This Room ID is taken! Try a different one.");
+                });
+            } catch (err) {
+                console.error("Host boot failure:", err);
+            }
+        }
+
+        // --- NETWORK MODULE: GUEST CONNECTION ---
+        function initializeGuestSession() {
+            try {
+                const requestedRoomId = document.getElementById('room-id-input').value.trim();
+                if (!requestedRoomId) { alert("Please supply the Host's exact Room ID."); return; }
+
+                gameMode = 'multi';
+                updateNetworkStatusLog("Reaching broker switchboard...");
+                amIHost = false;
+                p2pPeerInstance = new Peer();
+
+                p2pPeerInstance.on('open', (assignedId) => {
+                    localPlayerId = assignedId;
+                    updateNetworkStatusLog("Tracing route to Host socket...");
+                    const outgoingConn = p2pPeerInstance.connect(requestedRoomId);
+                    setupConnectionInfrastructure(outgoingConn);
+                });
+
+                p2pPeerInstance.on('error', (err) => {
+                    console.error("Guest handshake crash:", err);
+                    updateNetworkStatusLog("Could not connect to target Room ID.");
+                });
+            } catch (err) {
+                console.error("Guest sync failure:", err);
+            }
+        }
+
+        // --- PROTOCOL: PIPELINE CAPTURE ---
+        function setupConnectionInfrastructure(conn) {
+            try {
+                if (amIHost) {
+                    multiDeviceConnections.push(conn);
+                    conn.on('open', () => {
+                        const guestPlayerNumber = players.length + 1;
+                        players.push({
+                            id: conn.peer,
+                            name: `Player ${guestPlayerNumber}`,
+                            money: 0,
+                            equippedItem: "None",
+                            team: []
+                        });
+                        updateNetworkStatusLog("Guest connected. Press Start Multiplayer Game when ready.");
+                        const startMultiBtn = document.getElementById('start-multiplayer-btn');
+                        if (startMultiBtn) startMultiBtn.style.display = 'inline-block';
+                        broadcastStateToAllClients();
+                    });
+                } else {
+                    multiDeviceConnections = [conn];
+                    conn.on('open', () => {
+                        updateNetworkStatusLog("Connected to Host. Waiting for host to start...");
+                    });
+                }
+
+                conn.on('data', (packet) => {
+                    try {
+                        processIncomingPacket(packet);
+                    } catch (err) {
+                        console.error("Packet routing caught error:", err);
+                    }
+                });
+
+                conn.on('close', () => {
+                    updateNetworkStatusLog("A peer disconnected from the session.");
+                });
+            } catch (err) {
+                console.error("Connection link instantiation crashed:", err);
+            }
+        }
+
+        // --- STATE DISTRIBUTION ROUTINES ---
+        function broadcastStateToAllClients() {
+            if (!amIHost) return;
+            const synchronizationPayload = {
+                type: "STATE_SYNC",
+                players: players,
+                currentPlayerIndex: currentPlayerIndex,
+                currentPokemon: currentPokemon,
+                synchronizedChoices: synchronizedChoices,
+                currentCaptureProgress: currentCaptureProgress,
+                currentCatchTarget: currentCatchTarget
+            };
+            multiDeviceConnections.forEach(conn => conn.send(synchronizationPayload));
+            updateUI();
+        }
+
+        function dispatchGuestActionToHost(actionName, actionValue) {
+            if (amIHost) return;
+            multiDeviceConnections[0].send({
+                type: "GUEST_ACTION",
+                action: actionName,
+                value: actionValue,
+                senderId: localPlayerId
+            });
+        }
+
+        function processIncomingPacket(packet) {
+            if (packet.type === "STATE_SYNC") {
+                players = packet.players;
+                currentPlayerIndex = packet.currentPlayerIndex;
+                currentPokemon = packet.currentPokemon;
+                synchronizedChoices = packet.synchronizedChoices;
+                currentCaptureProgress = packet.currentCaptureProgress || 0;
+                currentCatchTarget = packet.currentCatchTarget || BASE_CAPTURE_THRESHOLD;
+
+                if (document.getElementById('home-screen').classList.contains('active')) {
+                    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                    document.getElementById('game-screen').classList.add('active');
+                }
+                updateUI();
+            } 
+            else if (packet.type === "GUEST_ACTION" && amIHost) {
+                if (packet.action === "SUBMIT_GUESS") {
+                    selectedOption = packet.value;
+                    checkAnswer();
+                } else if (packet.action === "REQUEST_PURCHASE") {
+                    buyItem(packet.value.itemName, packet.value.price, packet.senderId);
+                } else if (packet.action === 'ATTEMPT_CAPTURE') {
+                    attemptCaptureHit();
+                }
+            }
+            else if (packet.type === "FORCE_NAVIGATE") {
+                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                document.getElementById(packet.screenTarget).classList.add('active');
+                updateUI();
+            }
+        }
+
+        // --- CORE APPLICATION INTERACTION LOOP ---
+        function navigateTo(screenId) {
+            try {
+                if (amIHost) {
+                    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                    document.getElementById(screenId).classList.add('active');
+                    
+                    // Update points earned display if navigating to success screen
+                    if (screenId === 'success-screen' && currentPlayerIndex >= 0) {
+                        const earnedPoints = getPointsEarned(currentPlayerIndex);
+                        document.getElementById('points-earned').innerText = `+${earnedPoints} points`;
+                    }
+                    
+                    multiDeviceConnections.forEach(conn => conn.send({
+                        type: "FORCE_NAVIGATE", 
+                        screenTarget: screenId
+                    }));
+                    updateUI();
+                } else {
+                    if (screenId === 'shop-screen' || screenId === 'game-screen' || screenId === 'battle-screen') {
+                        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                        document.getElementById(screenId).classList.add('active');
+                        updateUI();
+                    }
+                }
+            } catch (err) {
+                console.error("Navigation router exception caught:", err);
+            }
+        }
+
+        function updateUI() {
+            try {
+                const activeTurnPlayer = players[currentPlayerIndex];
+                const localProfile = players.find(p => p.id === localPlayerId) || { money: 0, equippedItem: "None", name: "Guest", team: [] };
+
+                if (!activeTurnPlayer) return;
+
+                // Game Board Displays
+                document.getElementById('player-turn-banner').innerText = `${activeTurnPlayer.name.toUpperCase()}'S TURN`;
+                document.getElementById('money-display').innerText = localProfile.money;
+                document.getElementById('capture-progress-display').innerText = `${currentCaptureProgress}/${currentCatchTarget}`;
+                
+                // Render Visual Charms for the active user whose turn it currently is
+                renderEquippedCharmsBar(activeTurnPlayer);
+
+                // Shop Display Updates
+                document.getElementById('shop-owner-title').innerText = `${localProfile.name} Shop`;
+                document.getElementById('shop-money-display').innerText = localProfile.money;
+                document.getElementById('equipped-item-display').innerText = localProfile.equippedItem;
+                
+                document.getElementById('success-turn-owner').innerText = activeTurnPlayer.name;
+                document.getElementById('battle-mode-btn').style.display = (localProfile.team && localProfile.team.length > 0) ? 'block' : 'none';
+
+                renderTeamPanel();
+                
+                // Input Lock System: Disable buttons if it is not your turn
+                const isMyTurn = (activeTurnPlayer.id === localPlayerId);
+                document.getElementById('submit-button').disabled = !isMyTurn;
+                document.getElementById('hint-button').disabled = !isMyTurn;
+
+                // Host Control Panel Visibility Overrides
+                document.getElementById('host-next-round-btn').style.display = (amIHost || gameMode === 'single') ? 'block' : 'none';
+                document.getElementById('host-pass-turn-btn').style.display = (amIHost || gameMode === 'single') ? 'block' : 'none';
+
+                if (currentPokemon) {
+                    document.getElementById('pokemon-target').src = currentPokemon.img;
+                    document.getElementById('reveal-success-img').src = currentPokemon.img;
+                    document.getElementById('success-pokemon-reveal').innerText = `It's ${currentPokemon.name}!`;
+                    drawSynchronizedOptions(isMyTurn);
+                }
+
+                const captureSection = document.getElementById('capture-progress-section');
+                const catchButton = document.getElementById('catch-button');
+                if (captureSection && catchButton) {
+                    const shouldShowCapture = document.getElementById('success-screen').classList.contains('active') && isMyTurn && canAttemptCapture(activeTurnPlayer);
+                    captureSection.style.display = shouldShowCapture ? 'block' : 'none';
+                    catchButton.style.display = shouldShowCapture ? 'block' : 'none';
+                    document.getElementById('capture-bar-text').innerText = `${Math.min(currentCaptureProgress, currentCatchTarget)} / ${currentCatchTarget}`;
+                    document.getElementById('capture-bar-fill').style.width = `${Math.min((currentCaptureProgress / currentCatchTarget) * 100, 100)}%`;
+                }
+
+                if (document.getElementById('battle-screen').classList.contains('active')) {
+                    renderYourBattleTeam();
+                    renderBattleOpponents();
+                }
+
+                renderShopInventory();
+            } catch (err) {
+                console.error("UI Canvas write execution failed:", err);
+            }
+        }
+
+        // Draws the badges dynamically on the board screen
+        function renderEquippedCharmsBar(activePlayer) {
+            const badgeCase = document.getElementById('badge-case');
+            if (!badgeCase) return;
+            badgeCase.innerHTML = '';
+
+            if (!activePlayer.equippedItem || activePlayer.equippedItem === "None") {
+                badgeCase.innerHTML = `<span style="color:#aaa; font-size:12px; font-style:italic;">No active charms equipped</span>`;
+                return;
+            }
+
+            // Find matching shop data to style the badge perfectly
+            const matchedItem = shopInventory.find(item => item.name === activePlayer.equippedItem);
+            if (matchedItem) {
+                const badgeElement = document.createElement('div');
+                badgeElement.className = `charm-badge ${matchedItem.cssClass}`;
+                badgeElement.innerHTML = `<span>${matchedItem.icon}</span> <span>${matchedItem.name}</span>`;
+                badgeCase.appendChild(badgeElement);
+            }
+        }
+
+        function generateNewQuestion() {
+            try {
+                if (!amIHost && gameMode !== 'single') return;
+
+                const randomIndex = Math.floor(Math.random() * pokemonDatabase.length);
+                currentPokemon = pokemonDatabase[randomIndex];
+                currentCaptureProgress = 0;
+                currentCatchTarget = getCaptureDifficulty(currentPokemon);
+
+                let choices = [currentPokemon.name];
+                while (choices.length < 4) {
+                    let decoy = pokemonDatabase[Math.floor(Math.random() * pokemonDatabase.length)].name;
+                    if (!choices.includes(decoy)) choices.push(decoy);
+                }
+                choices.sort(() => Math.random() - 0.5);
+                synchronizedChoices = choices;
+
+                if (gameMode === 'single') {
+                    updateUI();
+                } else {
+                    broadcastStateToAllClients();
+                }
+            } catch (err) {
+                console.error("Question compilation routine fault handled:", err);
+                nextRound();
+            }
+        }
+
+        function drawSynchronizedOptions(isMyTurn) {
+            const boxContainer = document.getElementById('options-box');
+            boxContainer.innerHTML = '';
+
+            synchronizedChoices.forEach((name, idx) => {
+                const elementRow = document.createElement('div');
+                elementRow.className = `option-item ${!isMyTurn ? 'disabled' : ''}`;
+                elementRow.innerHTML = `
+                    <input type="radio" id="opt-${idx}" name="pkmn-opt" value="${name}" ${!isMyTurn ? 'disabled' : ''}>
+                    <label for="opt-${idx}" style="width:100%; cursor:pointer;">${name}</label>
+                `;
+                elementRow.onclick = () => {
+                    if (!isMyTurn) return;
+                    document.getElementById(`opt-${idx}`).checked = true;
+                    selectedOption = name;
+                };
+                boxContainer.appendChild(elementRow);
+            });
+        }
+
+        function getCaptureDifficulty(pokemon) {
+            if (!pokemon) return BASE_CAPTURE_THRESHOLD;
+            const legendaryNames = new Set(["Mewtwo", "Mew", "Rayquaza", "Articuno", "Zapdos", "Moltres"]);
+            const strongNames = new Set(["Charizard", "Blastoise", "Venusaur", "Dragonite", "Gengar", "Snorlax", "Gyarados", "Lucario", "Alakazam", "Mew", "Pikachu"]);
+            let difficulty = BASE_CAPTURE_THRESHOLD;
+            if (legendaryNames.has(pokemon.name)) {
+                difficulty += 4;
+            } else if (strongNames.has(pokemon.name)) {
+                difficulty += 2;
+            }
+            if (/Dragon|Psychic|Ghost|Dark|Steel|Fairy/.test(pokemon.type)) {
+                difficulty += 1;
+            }
+            return Math.min(10, difficulty);
+        }
+
+        function getCaptureProgress() {
+            return currentCaptureProgress;
+        }
+
+        function canAttemptCapture(player) {
+            if (!currentPokemon || !player) return false;
+            if (player.team.length >= MAX_TEAM_SIZE) return false;
+            if (player.team.some(p => p.name === currentPokemon.name)) return false;
+            return true;
+        }
+
+        function attemptCaptureHit() {
+            if (!currentPokemon) return;
+            const player = players[currentPlayerIndex];
+            if (!player) return;
+            if (!canAttemptCapture(player)) {
+                alert('Your team is full or this Pokémon has already been caught.');
+                return;
+            }
+
+            if (!amIHost) {
+                dispatchGuestActionToHost('ATTEMPT_CAPTURE');
+                return;
+            }
+
+            const increment = Math.floor(Math.random() * 2) + 1;
+            currentCaptureProgress += increment;
+            if (currentCaptureProgress >= currentCatchTarget) {
+                player.team.push({ name: currentPokemon.name, img: currentPokemon.img, type: currentPokemon.type });
+                currentCaptureProgress = 0;
+                currentCatchTarget = BASE_CAPTURE_THRESHOLD;
+                broadcastStateToAllClients();
+                alert(`${player.name} caught ${currentPokemon.name}!`);
+                document.getElementById('catch-button').style.display = 'none';
+                return;
+            }
+
+            broadcastStateToAllClients();
+        }
+
+        function renderTeamPanel() {
+            const teamContainer = document.getElementById('team-list');
+            const localProfile = players.find(p => p.id === localPlayerId) || { team: [] };
+            if (!teamContainer) return;
+            teamContainer.innerHTML = '';
+
+            if (!localProfile.team.length) {
+                teamContainer.innerHTML = `<span style="color:#777; font-size:12px;">No Pokémon caught yet. Answer questions to build your team.</span>`;
+                return;
+            }
+
+            localProfile.team.forEach((pokemon, idx) => {
+                const badge = document.createElement('div');
+                badge.style.cssText = 'background:#fff; border:1px solid #ccc; border-radius:8px; padding:8px; width:calc(50% - 8px); display:flex; gap:8px; align-items:center;';
+                badge.innerHTML = `
+                    <img src="${pokemon.img}" alt="${pokemon.name}" style="width:40px; height:40px; object-fit:contain; border-radius:8px; background:#f6f7ff;">
+                    <div style="flex:1;">
+                        <div style="font-weight:bold; font-size:14px;">${pokemon.name}</div>
+                        <div style="font-size:11px; color:#555;">${pokemon.type}</div>
+                    </div>
+                `;
+                teamContainer.appendChild(badge);
+            });
+        }
+
+        function renderBattleOpponents() {
+            const selector = document.getElementById('battle-opponent-select');
+            if (!selector) return;
+            selector.innerHTML = '';
+
+            const playerOpponents = players.filter(p => p.id !== localPlayerId && p.team.length > 0);
+            const aiOpponents = battleAIOpponents;
+            const combinedOpponents = [...playerOpponents, ...aiOpponents];
+
+            combinedOpponents.forEach(opponent => {
+                const opt = document.createElement('option');
+                opt.value = opponent.id;
+                opt.textContent = opponent.name + (opponent.id.startsWith('ai-') ? ' (AI)' : '');
+                selector.appendChild(opt);
+            });
+
+            if (!combinedOpponents.length) {
+                selector.innerHTML = '<option value="ai-brock">Brock (AI)</option>';
+                selectedOpponentPlayerId = 'ai-brock';
+            } else {
+                selectedOpponentPlayerId = combinedOpponents[0].id;
+            }
+            renderOpponentTeam();
+        }
+
+        function renderOpponentTeam() {
+            const opponentContainer = document.getElementById('battle-opponent-team');
+            const selector = document.getElementById('battle-opponent-select');
+            if (!opponentContainer || !selector) return;
+            selectedOpponentPlayerId = selector.value;
+            opponentContainer.innerHTML = '';
+
+            let opponent = players.find(p => p.id === selectedOpponentPlayerId);
+            if (!opponent && selectedOpponentPlayerId.startsWith('ai-')) {
+                opponent = battleAIOpponents.find(ai => ai.id === selectedOpponentPlayerId);
+            }
+
+            const opponentTeam = opponent && opponent.team.length ? opponent.team : [{ name: 'Wild Pidgey', type: 'Normal/Flying', img: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/16.png' }];
+
+            if (!selectedOpponentPokemon || !opponentTeam.some(p => p.name === selectedOpponentPokemon.name)) {
+                selectedOpponentPokemon = opponentTeam[0];
+            }
+            opponentTeam.forEach((pokemon, idx) => {
+                const badge = document.createElement('div');
+                badge.style.cssText = 'background:#fff; border:1px solid #ccc; border-radius:8px; padding:8px; width:calc(50% - 8px); display:flex; gap:8px; align-items:center; cursor:pointer;';
+                badge.innerHTML = `
+                    <input type="radio" name="opponent-pokemon" id="opp-${idx}" value="${idx}" style="margin-right:8px;">
+                    <img src="${pokemon.img}" alt="${pokemon.name}" style="width:40px; height:40px; object-fit:contain; border-radius:8px; background:#f6f7ff;">
+                    <div>
+                        <div style="font-weight:bold; font-size:14px;">${pokemon.name}</div>
+                        <div style="font-size:11px; color:#555;">${pokemon.type}</div>
+                    </div>
+                `;
+                badge.onclick = () => {
+                    document.getElementById(`opp-${idx}`).checked = true;
+                    selectedOpponentPokemon = pokemon;
+                };
+                opponentContainer.appendChild(badge);
+            });
+        }
+
+        function renderYourBattleTeam() {
+            const yourContainer = document.getElementById('battle-your-team');
+            if (!yourContainer) return;
+            yourContainer.innerHTML = '';
+            const localProfile = players.find(p => p.id === localPlayerId) || { team: [] };
+            yourContainer.style.minHeight = '100px';
+
+            if (!localProfile.team.length) {
+                yourContainer.innerHTML = '<div style="color:#777; font-size:14px;">Catch Pokémon first to use Battle Mode.</div>';
+                return;
+            }
+
+            if (!selectedBattlePokemon) {
+                selectedBattlePokemon = localProfile.team[0];
+            }
+
+            localProfile.team.forEach((pokemon, idx) => {
+                const badge = document.createElement('div');
+                badge.style.cssText = 'background:#fff; border:1px solid #ccc; border-radius:8px; padding:8px; width:calc(50% - 8px); display:flex; gap:8px; align-items:center; cursor:pointer;';
+                badge.innerHTML = `
+                    <input type="radio" name="your-pokemon" id="mine-${idx}" value="${idx}" style="margin-right:8px;">
+                    <img src="${pokemon.img}" alt="${pokemon.name}" style="width:40px; height:40px; object-fit:contain; border-radius:8px; background:#f6f7ff;">
+                    <div>
+                        <div style="font-weight:bold; font-size:14px;">${pokemon.name}</div>
+                        <div style="font-size:11px; color:#555;">${pokemon.type}</div>
+                    </div>
+                `;
+                badge.onclick = () => {
+                    document.getElementById(`mine-${idx}`).checked = true;
+                    selectedBattlePokemon = pokemon;
+                };
+                yourContainer.appendChild(badge);
+            });
+        }
+
+        function startBattle() {
+            if (!selectedBattlePokemon) {
+                alert('Pick a Pokémon from your team first.');
+                return;
+            }
+            if (!selectedOpponentPokemon) {
+                alert('Pick an opponent Pokémon first.');
+                return;
+            }
+
+            const yourScore = calculateBattleScore(selectedBattlePokemon, selectedOpponentPokemon);
+            const opponentScore = calculateBattleScore(selectedOpponentPokemon, selectedBattlePokemon);
+            const log = document.getElementById('battle-log');
+
+            if (!log) return;
+
+            const opponentName = selectedOpponentPlayerId.startsWith('ai-')
+                ? (battleAIOpponents.find(ai => ai.id === selectedOpponentPlayerId)?.name || 'AI Trainer')
+                : players.find(p => p.id === selectedOpponentPlayerId)?.name || 'Opponent';
+            const effectiveness = getBattleEffectivenessText(selectedBattlePokemon, selectedOpponentPokemon);
+            let resultText = `You used ${selectedBattlePokemon.name} against ${opponentName}'s ${selectedOpponentPokemon.name}.\n${effectiveness}\n`;
+
+            if (yourScore > opponentScore) {
+                resultText += 'Victory! You win the battle.';
+            } else if (yourScore < opponentScore) {
+                resultText += 'Defeat. Your opponent wins this round.';
+            } else {
+                resultText += 'It is a draw!';
+            }
+
+            log.innerText = resultText;
+            if (yourScore > opponentScore) {
+                const localProfile = players.find(p => p.id === localPlayerId);
+                if (localProfile) {
+                    localProfile.money += 20;
+                    broadcastStateToAllClients();
+                }
+            } else if (yourScore < opponentScore) {
+                const localProfile = players.find(p => p.id === localPlayerId);
+                if (localProfile) {
+                    localProfile.money += 5;
+                    broadcastStateToAllClients();
+                }
+            }
+            renderShopInventory();
+            updateUI();
+        }
+
+        function calculateBattleScore(attacker, defender) {
+            let score = 50;
+            const attackerTypes = attacker.type.split('/');
+            const defenderTypes = defender.type.split('/');
+
+            const basePower = getPokemonBattlePower(attacker);
+            const defensePower = getPokemonBattlePower(defender) * 0.8;
+            const typeMultiplier = getTypeMatchupMultiplier(attackerTypes, defenderTypes);
+            const stabBonus = attackerTypes.some(type => attackerTypes.includes(type)) ? 1.1 : 1.0;
+            const randomBonus = Math.floor(Math.random() * 11) - 3;
+
+            score += Math.round(basePower * 0.9 - defensePower * 0.4 + (typeMultiplier - 1) * 25 + (stabBonus - 1) * 12 + randomBonus);
+            return Math.max(10, Math.min(score, 100));
+        }
+
+        function getPokemonBattlePower(pokemon) {
+            const legendaryNames = new Set(["Mewtwo", "Mew", "Rayquaza", "Articuno", "Zapdos", "Moltres"]);
+            const strongNames = new Set(["Charizard", "Blastoise", "Venusaur", "Dragonite", "Gengar", "Snorlax", "Gyarados", "Lucario", "Alakazam", "Pikachu"]);
+            if (legendaryNames.has(pokemon.name)) return 95;
+            if (strongNames.has(pokemon.name)) return 80;
+            if (/Dragon|Psychic|Ghost|Dark|Steel|Fairy/.test(pokemon.type)) return 72;
+            if (/Flying|Fire|Water|Electric|Grass|Fighting|Rock|Ground|Poison/.test(pokemon.type)) return 65;
+            return 55;
+        }
+
+        function getTypeMatchupMultiplier(attackerTypes, defenderTypes) {
+            const effective = {
+                Normal: [],
+                Fire: ['Grass', 'Ice', 'Bug', 'Steel'],
+                Water: ['Fire', 'Ground', 'Rock'],
+                Electric: ['Water', 'Flying'],
+                Grass: ['Water', 'Ground', 'Rock'],
+                Ice: ['Grass', 'Ground', 'Flying', 'Dragon'],
+                Fighting: ['Normal', 'Ice', 'Rock', 'Dark', 'Steel'],
+                Poison: ['Grass', 'Fairy'],
+                Ground: ['Fire', 'Electric', 'Poison', 'Rock', 'Steel'],
+                Flying: ['Grass', 'Fighting', 'Bug'],
+                Psychic: ['Fighting', 'Poison'],
+                Bug: ['Grass', 'Psychic', 'Dark'],
+                Rock: ['Fire', 'Ice', 'Flying', 'Bug'],
+                Ghost: ['Psychic', 'Ghost'],
+                Dragon: ['Dragon'],
+                Dark: ['Psychic', 'Ghost'],
+                Steel: ['Ice', 'Rock', 'Fairy'],
+                Fairy: ['Fighting', 'Dragon', 'Dark']
+            };
+            const resistant = {
+                Normal: ['Rock', 'Steel'],
+                Fire: ['Fire', 'Water', 'Rock', 'Dragon'],
+                Water: ['Water', 'Grass', 'Dragon'],
+                Electric: ['Electric', 'Grass', 'Dragon'],
+                Grass: ['Fire', 'Grass', 'Poison', 'Flying', 'Bug', 'Dragon', 'Steel'],
+                Ice: ['Fire', 'Water', 'Ice', 'Steel'],
+                Fighting: ['Poison', 'Flying', 'Psychic', 'Bug', 'Fairy'],
+                Poison: ['Poison', 'Ground', 'Rock', 'Ghost'],
+                Ground: ['Grass', 'Bug'],
+                Flying: ['Electric', 'Rock', 'Steel'],
+                Psychic: ['Psychic', 'Steel'],
+                Bug: ['Fire', 'Fighting', 'Poison', 'Flying', 'Ghost', 'Steel', 'Fairy'],
+                Rock: ['Fighting', 'Ground', 'Steel'],
+                Ghost: ['Dark'],
+                Dragon: ['Steel'],
+                Dark: ['Fighting', 'Dark', 'Fairy'],
+                Steel: ['Fire', 'Water', 'Electric', 'Steel'],
+                Fairy: ['Fire', 'Poison', 'Steel']
+            };
+
+            let multiplier = 1;
+            attackerTypes.forEach(attType => {
+                defenderTypes.forEach(defType => {
+                    if (effective[attType] && effective[attType].includes(defType)) multiplier += 0.35;
+                    if (resistant[attType] && resistant[attType].includes(defType)) multiplier -= 0.20;
+                });
+            });
+            return Math.max(0.5, Math.min(multiplier, 2.0));
+        }
+
+        function getBattleEffectivenessText(attacker, defender) {
+            const multiplier = getTypeMatchupMultiplier(attacker.type.split('/'), defender.type.split('/'));
+            if (multiplier >= 1.5) return `${attacker.name} has a strong type advantage!`;
+            if (multiplier <= 0.75) return `${attacker.name} is at a disadvantage against ${defender.name}.`;
+            return `${attacker.name} and ${defender.name} are evenly matched.`;
+        }
+
+        function useHint() {
+            if (!currentPokemon) return;
+            alert(`Hint: This Pokémon belongs to the ${currentPokemon.type} archetype!`);
+        }
+
+        function getPointsEarned(playerIndex) {
+            const player = players[playerIndex];
+            let points = 10;
+            
+            if (player.equippedItem && player.equippedItem !== "None") {
+                const equippedItem = shopInventory.find(item => item.name === player.equippedItem);
+                if (equippedItem) {
+                    if (equippedItem.perk === "points_bonus") {
+                        points += equippedItem.perkValue;
+                    } else if (equippedItem.perk === "points_multiplier") {
+                        points *= equippedItem.perkValue;
+                    }
+                }
+            }
+            return points;
+        }
+
+        function checkAnswer() {
+            if (!amIHost && gameMode !== 'single') {
+                if (!selectedOption) { alert("Please select an option first!"); return; }
+                dispatchGuestActionToHost("SUBMIT_GUESS", selectedOption);
+                return;
+            }
+
+            try {
+                if (!selectedOption) { alert("Please select an option first!"); return; }
+                if (selectedOption === currentPokemon.name) {
+                    const earnedPoints = getPointsEarned(currentPlayerIndex);
+                    players[currentPlayerIndex].money += earnedPoints;
+                    if (gameMode === 'single') {
+                        updateUI();
+                    } else {
+                        broadcastStateToAllClients();
+                    }
+                    
+                    // Check for win condition
+                    if (players[currentPlayerIndex].money >= WIN_THRESHOLD) {
+                        showWinScreen(currentPlayerIndex);
+                    } else {
+                        navigateTo('success-screen');
+                    }
+                } else {
+                    document.getElementById('fail-screen-notice').innerText = `${players[currentPlayerIndex].name} guessed incorrectly.`;
+                    navigateTo('fail-screen');
+                }
+            } catch (err) {
+                console.error("Decision engine exception handled:", err);
+                nextRound();
+            }
+        }
+
+        function shiftTurnPointers() {
+            currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+        }
+
+        function nextRound() {
+            if (!amIHost && gameMode !== 'single') return;
+            currentPokemon = null;
+            selectedOption = null;
+            if (gameMode === 'multi') {
+                shiftTurnPointers();
+            }
+            generateNewQuestion();
+            navigateTo('game-screen');
+        }
+
+        function passTurnOnFailure() {
+            if (!amIHost && gameMode !== 'single') return;
+            currentPokemon = null;
+            selectedOption = null;
+            if (gameMode === 'multi') {
+                shiftTurnPointers();
+            }
+            generateNewQuestion();
+            navigateTo('game-screen');
+        }
+
+        function showWinScreen(winnerIndex) {
+            if (!amIHost && gameMode !== 'single') return;
+            const winner = players[winnerIndex];
+            document.getElementById('win-player-name').innerText = winner.name;
+            document.getElementById('win-player-score').innerText = winner.money;
+            
+            // Generate final standings
+            const standings = players
+                .sort((a, b) => b.money - a.money)
+                .map((p, idx) => `<div style="padding:8px; border-bottom:1px solid #ddd;"><strong>${idx + 1}. ${p.name}</strong>: $${p.money}</div>`)
+                .join('');
+            document.getElementById('final-standings').innerHTML = standings;
+            
+            navigateTo('win-screen');
+            if (gameMode !== 'single') {
+                multiDeviceConnections.forEach(conn => conn.send({
+                    type: "FORCE_NAVIGATE", 
+                    screenTarget: 'win-screen'
+                }));
+            }
+        }
+
+        function restartGame() {
+            if (!amIHost && gameMode !== 'single') return;
+            // Reset all player money and items
+            players.forEach(p => {
+                p.money = 0;
+                p.equippedItem = "None";
+            });
+            currentPlayerIndex = 0;
+            currentPokemon = null;
+            selectedOption = null;
+            synchronizedChoices = [];
+            generateNewQuestion();
+            navigateTo('game-screen');
+            broadcastStateToAllClients();
+        }
+
+        function renderShopInventory() {
+            try {
+                const listContainer = document.getElementById('shop-list');
+                if (!listContainer) return;
+                listContainer.innerHTML = '';
+
+                const localProfile = players.find(p => p.id === localPlayerId) || { money: 0, equippedItem: "None" };
+
+                shopInventory.forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'shop-item';
+                    
+                    const isEquipped = localProfile.equippedItem === item.name;
+                    const buttonText = isEquipped ? 'Equipped' : 'Buy';
+                    const buttonClass = isEquipped ? 'buy-btn equipped' : 'buy-btn';
+
+                    row.innerHTML = `
+                        <div class="shop-item-info">
+                            <span class="item-name">${item.icon} ${item.name}</span>
+                            <span class="item-cost">Price: $${item.price}</span>
+                            <span style="font-size: 12px; color: #2e7d32; margin-top: 4px; font-weight: bold;">${item.description}</span>
+                        </div>
+                        <button class="${buttonClass}" ${isEquipped ? 'disabled' : ''} onclick="attemptPurchase('${item.name}', ${item.price})">
+                            ${buttonText}
+                        </button>
+                    `;
+                    listContainer.appendChild(row);
+                });
+            } catch (err) {
+                console.error("Shop render pipeline crash intercepted:", err);
+            }
+        }
+
+        function attemptPurchase(itemName, price) {
+            if (!amIHost) {
+                dispatchGuestActionToHost("REQUEST_PURCHASE", { itemName: itemName, price: price });
+                return;
+            }
+            buyItem(itemName, price, localPlayerId);
+        }
+
+        function buyItem(itemName, price, targetPlayerId) {
+            try {
+                const activeBuyer = players.find(p => p.id === targetPlayerId);
+                if (activeBuyer && activeBuyer.money >= price) {
+                    activeBuyer.money -= price;
+                    activeBuyer.equippedItem = itemName;
+                    broadcastStateToAllClients();
+                } else {
+                    if (targetPlayerId === localPlayerId) {
+                        alert("Not enough money!");
+                    }
+                }
+            } catch (err) {
+                console.error("Transaction middleware intercept failure:", err);
+            }
+        }
+    </script>
+</body>
+</html>

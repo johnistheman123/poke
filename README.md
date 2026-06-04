@@ -23,3 +23,14 @@ This game is designed for **three types of players**:
 ## 🕹️ How to Play
 
 The entire game is played using an intuitive, layout-locked mobile card structure designed to minimize clicks and maximize engagement.
+
+## 📁 Project Structure
+- `index.html` — GitHub Pages entry point that forwards to the app.
+- `src/index.html` — main game source code organized in the `src/` folder.
+- `spec.md` — what was built and why.
+- `plan.md` — how the work was completed and the completion criteria.
+- `testing-notes.md` — evidence for each validation gate.
+- `wireframes/` — UI wireframes for the home and game screens.
+
+## 🚀 Deployment
+This repository is ready for GitHub Pages deployment from the root branch. Opening `index.html` will redirect users to the playable game in `src/index.html`.
