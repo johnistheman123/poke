@@ -34,3 +34,11 @@ The entire game is played using an intuitive, layout-locked mobile card structur
 
 ## 🚀 Deployment
 This repository is ready for GitHub Pages deployment from the root branch. Opening `index.html` will redirect users to the playable game in `src/index.html`.
+
+## 📡 API Documentation
+An API documentation stub has been added in the `docs` folder:
+
+- `docs/API.md` — human-readable API overview and examples
+- `docs/openapi.yaml` — OpenAPI 3.0 stub for tooling and generation
+
+Use these files as a starting point for implementing or documenting a server-side API for this project.

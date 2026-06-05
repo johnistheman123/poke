@@ -1,0 +1,99 @@
+openapi: 3.0.3
+info:
+  title: poke API
+  version: 0.1.0
+  description: Minimal OpenAPI stub for the poke project
+servers:
+  - url: /api
+paths:
+  /pokemon:
+    get:
+      summary: List pokemon
+      responses:
+        '200':
+          description: A JSON array of pokemon
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pokemon'
+    post:
+      summary: Create a pokemon
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PokemonCreate'
+      responses:
+        '201':
+          description: Created
+  /pokemon/{id}:
+    get:
+      summary: Get a pokemon by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: A single pokemon
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pokemon'
+    put:
+      summary: Update a pokemon
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PokemonCreate'
+      responses:
+        '200':
+          description: Updated
+    delete:
+      summary: Delete a pokemon
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Deleted
+components:
+  schemas:
+    Pokemon:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+        notes:
+          type: string
+      required: [id, name, type]
+    PokemonCreate:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        notes:
+          type: string
+      required: [name, type]
